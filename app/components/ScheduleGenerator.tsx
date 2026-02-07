@@ -272,9 +272,6 @@ export default function ScheduleGenerator() {
       staffHotPositionTypes[s.id] = new Set();
     });
 
-    // Define essential positions that must always be filled
-    const ESSENTIAL_POSITIONS: Position[] = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
-
     // Assign positions for each time slot
     TIME_SLOTS.forEach((slot, slotIndex) => {
       const availableStaff = staffWithPreferences.filter(s => s.availableSlots.includes(slot));
@@ -285,8 +282,15 @@ export default function ScheduleGenerator() {
       // Get positions for this specific time slot and staff count
       const positionsForSlot = getPositionsForSlotAndCount(slot, dailyStaff.length);
 
+      // Define essential positions based on slot and staff count
+      // For 6 people during busy hours (11-12, 12-1), Grill 2 is essential
+      let essentialPositions: Position[] = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
+      if (dailyStaff.length === 6 && (slot === '11am-12pm' || slot === '12pm-1pm') && !oneGrillerOnly) {
+        essentialPositions = ['P.O.S.', 'Grill 1', 'Grill 2', 'Expo 1', 'Expo 2', 'Fries'];
+      }
+
       // PHASE 1: Fill essential positions first
-      const essentialPositionsInSlot = positionsForSlot.filter(p => ESSENTIAL_POSITIONS.includes(p));
+      const essentialPositionsInSlot = positionsForSlot.filter(p => essentialPositions.includes(p));
 
       essentialPositionsInSlot.forEach(position => {
         const staffScores: Array<{
