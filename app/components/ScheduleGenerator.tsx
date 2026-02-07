@@ -168,41 +168,49 @@ export default function ScheduleGenerator() {
       return;
     }
 
-    // Determine which positions to use based on staff count
-    // Priority order: POS, Grill 1, Expo 1, Fries, Expo 2, then Lobby/Dish 1, then Grill 2, then Lobby/Dish 2
-    let positionsToUse: Position[] = [];
+    // Determine which positions to use based on staff count and time slot
+    // For 6 people: 11-12 & 12-1 need 2 grillers (busy), 1-2 needs lobby/dish (slow)
+    const getPositionsForSlotAndCount = (slot: TimeSlot, count: number): Position[] => {
+      if (oneGrillerOnly) {
+        // One griller only mode (e.g., slow Sundays)
+        if (count === 5) {
+          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
+        } else if (count === 6) {
+          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1'];
+        } else if (count === 7) {
+          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1', 'Lobby/Dish 2'];
+        } else {
+          // 8+ people: Skip Grill 2
+          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1', 'Lobby/Dish 2'];
+        }
+      } else {
+        // Normal mode
+        if (count === 5) {
+          // 5 people: Essential positions only
+          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
+        } else if (count === 6) {
+          // 6 people: Different positions for busy vs slow periods
+          if (slot === '1pm-2pm') {
+            // Slow period: 1 griller + Lobby/Dish
+            return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1'];
+          } else {
+            // Busy periods: 2 grillers, no Lobby/Dish
+            return ['P.O.S.', 'Grill 1', 'Grill 2', 'Expo 1', 'Expo 2', 'Fries'];
+          }
+        } else if (count === 7) {
+          // 7 people: Essential + Lobby/Dish 1 + Grill 2 (except Grill 2 removed from 1-2pm later)
+          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1', 'Grill 2'];
+        } else if (count === 8) {
+          // 8 people: All positions
+          return [...ALL_POSITIONS];
+        } else {
+          // 9+ people: All positions
+          return [...ALL_POSITIONS];
+        }
+      }
+    };
 
-    if (oneGrillerOnly) {
-      // One griller only mode (e.g., slow Sundays)
-      if (dailyStaff.length === 5) {
-        positionsToUse = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
-      } else if (dailyStaff.length === 6) {
-        positionsToUse = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1'];
-      } else if (dailyStaff.length === 7) {
-        positionsToUse = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1', 'Lobby/Dish 2'];
-      } else {
-        // 8+ people: Skip Grill 2
-        positionsToUse = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1', 'Lobby/Dish 2'];
-      }
-    } else {
-      // Normal mode
-      if (dailyStaff.length === 5) {
-        // 5 people: Essential positions only (POS, Grill 1, Expo 1, Fries, Expo 2)
-        positionsToUse = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
-      } else if (dailyStaff.length === 6) {
-        // 6 people: Essential + Lobby/Dish 1
-        positionsToUse = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1'];
-      } else if (dailyStaff.length === 7) {
-        // 7 people: Essential + Lobby/Dish 1 + Grill 2
-        positionsToUse = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1', 'Grill 2'];
-      } else if (dailyStaff.length === 8) {
-        // 8 people: All positions
-        positionsToUse = [...ALL_POSITIONS];
-      } else {
-        // 9+ people: All positions (will have UNFILLED for extras)
-        positionsToUse = [...ALL_POSITIONS];
-      }
-    }
+    // We'll use this function per time slot instead of a single positionsToUse array
 
     // Define hot positions
     const HOT_POSITIONS: Position[] = ['Grill 1', 'Grill 2', 'Fries'];
@@ -274,11 +282,8 @@ export default function ScheduleGenerator() {
       const assignedStaff = new Set<string>();
       const assignedPositions = new Set<Position>();
 
-      // Filter positions for this slot - Remove Grill 2 from 1-2pm
-      let positionsForSlot = positionsToUse;
-      if (slot === '1pm-2pm') {
-        positionsForSlot = positionsToUse.filter(p => p !== 'Grill 2');
-      }
+      // Get positions for this specific time slot and staff count
+      const positionsForSlot = getPositionsForSlotAndCount(slot, dailyStaff.length);
 
       // PHASE 1: Fill essential positions first
       const essentialPositionsInSlot = positionsForSlot.filter(p => ESSENTIAL_POSITIONS.includes(p));
@@ -503,12 +508,20 @@ export default function ScheduleGenerator() {
       newSchedule[slot] = assignments;
     });
 
+    // Collect all unique positions used across all slots
+    const allPositionsUsed = new Set<Position>();
+    TIME_SLOTS.forEach(slot => {
+      const positions = getPositionsForSlotAndCount(slot, dailyStaff.length);
+      positions.forEach(p => allPositionsUsed.add(p));
+    });
+    const activePositionsArray = Array.from(allPositionsUsed);
+
     setSchedule(newSchedule);
-    setActivePositions(positionsToUse);
+    setActivePositions(activePositionsArray);
 
     // Save current schedule to localStorage
     localStorage.setItem('currentSchedule', JSON.stringify(newSchedule));
-    localStorage.setItem('currentActivePositions', JSON.stringify(positionsToUse));
+    localStorage.setItem('currentActivePositions', JSON.stringify(activePositionsArray));
 
     // Update history with the generated schedule
     const currentDate = localStorage.getItem('currentDate') || new Date().toISOString().split('T')[0];
