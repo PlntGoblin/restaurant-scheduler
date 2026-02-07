@@ -274,8 +274,14 @@ export default function ScheduleGenerator() {
       const assignedStaff = new Set<string>();
       const assignedPositions = new Set<Position>();
 
+      // Filter positions for this slot - Remove Grill 2 from 1-2pm
+      let positionsForSlot = positionsToUse;
+      if (slot === '1pm-2pm') {
+        positionsForSlot = positionsToUse.filter(p => p !== 'Grill 2');
+      }
+
       // PHASE 1: Fill essential positions first
-      const essentialPositionsInSlot = positionsToUse.filter(p => ESSENTIAL_POSITIONS.includes(p));
+      const essentialPositionsInSlot = positionsForSlot.filter(p => ESSENTIAL_POSITIONS.includes(p));
 
       essentialPositionsInSlot.forEach(position => {
         const staffScores: Array<{
@@ -301,6 +307,20 @@ export default function ScheduleGenerator() {
           const historicalFrequency = getPositionFrequency(staff.id, position);
           const currentHotPositionCount = staffHotPositionCount[staff.id];
 
+          // Check if this person worked this position at this time slot yesterday
+          const workedSameSlotYesterday = (() => {
+            if (history.length === 0) return false;
+            const yesterdaySchedule = history[0]; // Most recent schedule
+            if (!yesterdaySchedule.schedule) return false;
+
+            const yesterdaySlotAssignments = yesterdaySchedule.schedule[slot];
+            if (!yesterdaySlotAssignments) return false;
+
+            return yesterdaySlotAssignments.some((assignment: any) =>
+              assignment.staffId === staff.id && assignment.position === position
+            );
+          })();
+
           // Get hot position type (Grill 1 and Grill 2 are both "Grill")
           const getHotPositionType = (pos: Position): string => {
             if (pos === 'Grill 1' || pos === 'Grill 2') return 'Grill';
@@ -323,9 +343,15 @@ export default function ScheduleGenerator() {
             }
           }
 
+          // MASSIVE penalty for working same position twice in one day
+          const samePositionTodayPenalty = hasWorkedPosition ? 10000 : 0;
+
+          // Large penalty for working same position at same time slot as yesterday
+          const sameSlotYesterdayPenalty = workedSameSlotYesterday ? 500 : 0;
+
           const varietyBonus = hasWorkedPosition ? 0 : 2;
           const historyPenalty = historicalFrequency * 0.5;
-          const score = preference + varietyBonus - historyPenalty - hotPositionPenalty;
+          const score = preference + varietyBonus - historyPenalty - hotPositionPenalty - samePositionTodayPenalty - sameSlotYesterdayPenalty;
 
           staffScores.push({
             staffId: staff.id,
@@ -365,7 +391,7 @@ export default function ScheduleGenerator() {
       });
 
       // PHASE 2: Fill remaining non-essential positions
-      const nonEssentialPositions = positionsToUse.filter(p => !ESSENTIAL_POSITIONS.includes(p));
+      const nonEssentialPositions = positionsForSlot.filter(p => !ESSENTIAL_POSITIONS.includes(p));
 
       nonEssentialPositions.forEach(position => {
         const staffScores: Array<{
@@ -391,6 +417,20 @@ export default function ScheduleGenerator() {
           const historicalFrequency = getPositionFrequency(staff.id, position);
           const currentHotPositionCount = staffHotPositionCount[staff.id];
 
+          // Check if this person worked this position at this time slot yesterday
+          const workedSameSlotYesterday = (() => {
+            if (history.length === 0) return false;
+            const yesterdaySchedule = history[0]; // Most recent schedule
+            if (!yesterdaySchedule.schedule) return false;
+
+            const yesterdaySlotAssignments = yesterdaySchedule.schedule[slot];
+            if (!yesterdaySlotAssignments) return false;
+
+            return yesterdaySlotAssignments.some((assignment: any) =>
+              assignment.staffId === staff.id && assignment.position === position
+            );
+          })();
+
           // Get hot position type (Grill 1 and Grill 2 are both "Grill")
           const getHotPositionType = (pos: Position): string => {
             if (pos === 'Grill 1' || pos === 'Grill 2') return 'Grill';
@@ -413,9 +453,15 @@ export default function ScheduleGenerator() {
             }
           }
 
+          // MASSIVE penalty for working same position twice in one day
+          const samePositionTodayPenalty = hasWorkedPosition ? 10000 : 0;
+
+          // Large penalty for working same position at same time slot as yesterday
+          const sameSlotYesterdayPenalty = workedSameSlotYesterday ? 500 : 0;
+
           const varietyBonus = hasWorkedPosition ? 0 : 2;
           const historyPenalty = historicalFrequency * 0.5;
-          const score = preference + varietyBonus - historyPenalty - hotPositionPenalty;
+          const score = preference + varietyBonus - historyPenalty - hotPositionPenalty - samePositionTodayPenalty - sameSlotYesterdayPenalty;
 
           staffScores.push({
             staffId: staff.id,
