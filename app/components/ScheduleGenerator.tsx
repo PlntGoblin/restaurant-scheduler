@@ -614,8 +614,14 @@ export default function ScheduleGenerator() {
                     return assignment && assignment.staffName !== 'UNFILLED';
                   });
 
-                  // Only render row if position has assignments
-                  if (!hasAssignments) return null;
+                  // Check if this position appears in any slot (even if UNFILLED)
+                  const appearsInSchedule = TIME_SLOTS.some(slot => {
+                    const assignment = schedule[slot].find(a => a.position === position);
+                    return assignment !== undefined;
+                  });
+
+                  // Only render row if position has assignments OR appears in schedule
+                  if (!hasAssignments && !appearsInSchedule) return null;
 
                   return (
                     <tr key={position}>
