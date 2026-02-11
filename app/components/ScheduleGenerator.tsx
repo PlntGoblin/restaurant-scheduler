@@ -287,6 +287,7 @@ export default function ScheduleGenerator() {
       let essentialPositions: Position[] = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
       if (dailyStaff.length === 6 && (slot === '11am-12pm' || slot === '12pm-1pm') && !oneGrillerOnly) {
         essentialPositions = ['P.O.S.', 'Grill 1', 'Grill 2', 'Expo 1', 'Expo 2', 'Fries'];
+        console.log(`[${slot}] Using 6 essential positions including Grill 2`);
       }
 
       // PHASE 1: Fill essential positions first
@@ -311,8 +312,11 @@ export default function ScheduleGenerator() {
             return;
           }
 
-          const preference = getPreferenceForPosition(staff.preferences, position);
+          // Hard block: never assign same position twice in one day
           const hasWorkedPosition = staffPositionHistory[staff.id].has(position);
+          if (hasWorkedPosition) return;
+
+          const preference = getPreferenceForPosition(staff.preferences, position);
           const historicalFrequency = getPositionFrequency(staff.id, position);
           const currentHotPositionCount = staffHotPositionCount[staff.id];
 
@@ -340,27 +344,21 @@ export default function ScheduleGenerator() {
           // Heavy penalty for second hot position assignment
           let hotPositionPenalty = 0;
           if (isHotPosition && currentHotPositionCount >= 1) {
-            // Already worked a hot position - huge penalty
-            // But less penalty for senior staff (they can handle it better if needed)
             const seniorityRank = getSeniorityRank(staff.seniority);
-            hotPositionPenalty = 1000 - (seniorityRank * 50); // GM: 950, AGM: 900, Captain: 850, Team: 800
+            hotPositionPenalty = 1000 - (seniorityRank * 50);
 
-            // Extra penalty if it's the same hot position type (e.g., Grill twice)
             const currentPositionType = getHotPositionType(position);
             if (staffHotPositionTypes[staff.id].has(currentPositionType)) {
-              hotPositionPenalty += 500; // Huge penalty for same type twice
+              hotPositionPenalty += 500;
             }
           }
-
-          // MASSIVE penalty for working same position twice in one day
-          const samePositionTodayPenalty = hasWorkedPosition ? 10000 : 0;
 
           // Large penalty for working same position at same time slot as yesterday
           const sameSlotYesterdayPenalty = workedSameSlotYesterday ? 500 : 0;
 
-          const varietyBonus = hasWorkedPosition ? 0 : 2;
+          const varietyBonus = 2; // Always get variety bonus since we hard-blocked repeats
           const historyPenalty = historicalFrequency * 0.5;
-          const score = preference + varietyBonus - historyPenalty - hotPositionPenalty - samePositionTodayPenalty - sameSlotYesterdayPenalty;
+          const score = preference + varietyBonus - historyPenalty - hotPositionPenalty - sameSlotYesterdayPenalty;
 
           staffScores.push({
             staffId: staff.id,
@@ -400,7 +398,7 @@ export default function ScheduleGenerator() {
       });
 
       // PHASE 2: Fill remaining non-essential positions
-      const nonEssentialPositions = positionsForSlot.filter(p => !ESSENTIAL_POSITIONS.includes(p));
+      const nonEssentialPositions = positionsForSlot.filter(p => !essentialPositions.includes(p));
 
       nonEssentialPositions.forEach(position => {
         const staffScores: Array<{
@@ -421,8 +419,11 @@ export default function ScheduleGenerator() {
             return;
           }
 
-          const preference = getPreferenceForPosition(staff.preferences, position);
+          // Hard block: never assign same position twice in one day
           const hasWorkedPosition = staffPositionHistory[staff.id].has(position);
+          if (hasWorkedPosition) return;
+
+          const preference = getPreferenceForPosition(staff.preferences, position);
           const historicalFrequency = getPositionFrequency(staff.id, position);
           const currentHotPositionCount = staffHotPositionCount[staff.id];
 
@@ -450,27 +451,21 @@ export default function ScheduleGenerator() {
           // Heavy penalty for second hot position assignment
           let hotPositionPenalty = 0;
           if (isHotPosition && currentHotPositionCount >= 1) {
-            // Already worked a hot position - huge penalty
-            // But less penalty for senior staff (they can handle it better if needed)
             const seniorityRank = getSeniorityRank(staff.seniority);
-            hotPositionPenalty = 1000 - (seniorityRank * 50); // GM: 950, AGM: 900, Captain: 850, Team: 800
+            hotPositionPenalty = 1000 - (seniorityRank * 50);
 
-            // Extra penalty if it's the same hot position type (e.g., Grill twice)
             const currentPositionType = getHotPositionType(position);
             if (staffHotPositionTypes[staff.id].has(currentPositionType)) {
-              hotPositionPenalty += 500; // Huge penalty for same type twice
+              hotPositionPenalty += 500;
             }
           }
-
-          // MASSIVE penalty for working same position twice in one day
-          const samePositionTodayPenalty = hasWorkedPosition ? 10000 : 0;
 
           // Large penalty for working same position at same time slot as yesterday
           const sameSlotYesterdayPenalty = workedSameSlotYesterday ? 500 : 0;
 
-          const varietyBonus = hasWorkedPosition ? 0 : 2;
+          const varietyBonus = 2;
           const historyPenalty = historicalFrequency * 0.5;
-          const score = preference + varietyBonus - historyPenalty - hotPositionPenalty - samePositionTodayPenalty - sameSlotYesterdayPenalty;
+          const score = preference + varietyBonus - historyPenalty - hotPositionPenalty - sameSlotYesterdayPenalty;
 
           staffScores.push({
             staffId: staff.id,
