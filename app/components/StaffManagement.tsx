@@ -2,17 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { StaffMember, Position, PositionPreference } from '@/lib/types';
-
-const ALL_POSITIONS: Position[] = [
-  'Grill 1',
-  'Grill 2',
-  'P.O.S.',
-  'Expo 1',
-  'Expo 2',
-  'Fries',
-  'Lobby/Dish 1',
-  'Lobby/Dish 2',
-];
+import { ALL_POSITIONS } from '@/lib/constants';
 
 // Positions for preferences (exclude duplicates)
 const PREFERENCE_POSITIONS: Position[] = [
@@ -74,7 +64,6 @@ export default function StaffManagement() {
     const newStaff: StaffMember = {
       id: editingStaff?.id || Date.now().toString(),
       name: formData.name,
-      email: '', // Not used but required by type
       positions: ALL_POSITIONS, // Everyone can work all positions
       preferences: formData.preferences,
       availability: [], // Everyone works all days
@@ -132,6 +121,7 @@ export default function StaffManagement() {
     link.href = url;
     link.download = 'staff-data.json';
     link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -263,7 +253,7 @@ export default function StaffManagement() {
               </tr>
             ) : (
               staff.map((member) => {
-                const topPreferences = member.preferences
+                const topPreferences = [...member.preferences]
                   .sort((a, b) => b.preferenceLevel - a.preferenceLevel)
                   .slice(0, 3);
 

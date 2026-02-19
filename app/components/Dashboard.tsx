@@ -1,12 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-
-interface DailyStaff {
-  id: string;
-  name: string;
-  duration: '11-1pm' | '11-2pm' | '1-2pm' | '12-2pm';
-}
+import { useState, useEffect, useRef } from 'react';
+import { DailyStaff } from '@/lib/types';
 
 interface DashboardProps {
   onSaveAndGenerate: () => void;
@@ -21,6 +16,7 @@ export default function Dashboard({ onSaveAndGenerate }: DashboardProps) {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [oneGrillerOnly, setOneGrillerOnly] = useState<boolean>(false);
   const [isSaved, setIsSaved] = useState<boolean>(false);
+  const hasMounted = useRef(false);
 
   // Load staff from localStorage
   useEffect(() => {
@@ -61,20 +57,25 @@ export default function Dashboard({ onSaveAndGenerate }: DashboardProps) {
     if (savedOneGrillerOnly) {
       setOneGrillerOnly(savedOneGrillerOnly === 'true');
     }
+
+    setTimeout(() => { hasMounted.current = true; }, 0);
   }, []);
 
   // Auto-save grill opener when it changes
   useEffect(() => {
+    if (!hasMounted.current) return;
     localStorage.setItem('grillOpener', grillOpener);
   }, [grillOpener]);
 
   // Auto-save one griller only when it changes
   useEffect(() => {
+    if (!hasMounted.current) return;
     localStorage.setItem('oneGrillerOnly', oneGrillerOnly.toString());
   }, [oneGrillerOnly]);
 
   // Auto-save date when it changes
   useEffect(() => {
+    if (!hasMounted.current) return;
     localStorage.setItem('currentDate', selectedDate);
     setIsSaved(false); // Reset saved state when date changes
   }, [selectedDate]);

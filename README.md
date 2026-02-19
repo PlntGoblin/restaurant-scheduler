@@ -1,142 +1,124 @@
 # Restaurant Scheduler
 
-A Next.js application for automatically generating position rotation schedules for restaurant lunch rush shifts.
+A smart rotation scheduler built for restaurant lunch rush shifts. Automatically generates fair position assignments across time slots, balancing staff preferences, seniority, hot position limits, and historical variety — so your team always knows where they need to be.
+
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss)
+
+---
+
+## How It Works
+
+Set up your staff roster, pick who's working today, and the scheduler generates a full rotation across three hourly time slots (11am–12pm, 12pm–1pm, 1pm–2pm). The algorithm ensures nobody gets stuck on the same station all day, hot positions get rotated fairly, and senior staff fill gaps when constraints are tight.
+
+---
 
 ## Features
 
-- **Dashboard**: Select daily staff, shift durations, and grill opener
-- **Staff Management**: Create staff members with position preferences (1-5 rating) and seniority levels
-- **Schedule Generator**: Automatically generate rotation schedules with smart algorithms
-- **History**: Track and view past 7 days of schedules
+### Dashboard
+- Select the date and add staff working that day
+- Set individual shift durations (11–1pm, 11–2pm, 12–2pm, 1–2pm)
+- Designate who opened the grill (9–10am pre-service)
+- Toggle **One Griller Only** mode for slow days
+- Auto-saves to history on generate
 
-### Smart Scheduling Algorithm
+### Staff Management
+- Add and edit staff members with name and seniority level (GM, AGM, Captain, Team Member)
+- Set position preferences on a 1–5 scale for each station
+- Export staff data to JSON
+- View each staff member's top 3 preferred positions at a glance
 
-- **Position Preferences**: Considers staff preferences (1-5 rating scale)
-- **Hot Position Rules**: Limits hot positions (Grill, Fries) to max 1 per person per shift
-- **Seniority Fallback**: Uses seniority (GM → AGM → Captain → Team Member) when constraints can't be met
-- **Historical Variety**: Tracks past 7 days to ensure variety in assignments
-- **Essential Positions**: Always fills critical positions (POS, Grill 1, Expo 1, Fries, Expo 2) first
-- **One Griller Mode**: Support for slow days (Sundays) with single griller
+### Schedule Generator
+- Generates rotation across 3 hourly time slots
+- Assigns up to **8 positions**: Grill 1, Grill 2, P.O.S., Expo 1, Expo 2, Fries, Lobby/Dish 1, Lobby/Dish 2
+- Dynamically adjusts active positions based on staff count (5–8+ people)
+- Print-ready schedule output
 
-## Tech Stack
+### Scheduling Algorithm
+| Rule | Description |
+|------|-------------|
+| **Preference scoring** | Staff rated 1–5 per position; higher preference = higher assignment priority |
+| **No same-position repeats** | Hard block — nobody works the same position twice in one day |
+| **Hot position limit** | Grill and Fries capped at 1 assignment per person per shift |
+| **Hot position diversity** | Penalty for getting both Grill *and* Fries in the same shift |
+| **Yesterday penalty** | Avoids assigning the same person to the same position + time slot as the day before |
+| **Historical variety** | Tracks past 7 days to spread assignments evenly over time |
+| **Seniority fallback** | When multiple staff tie, seniority breaks it (GM > AGM > Captain > Team Member) |
+| **Grill opener protection** | Whoever opened the grill pre-service skips hot positions during 11am–12pm |
+| **Essential positions first** | P.O.S., Grill 1, Expo 1, Fries, Expo 2 always get filled before Lobby/Dish |
+| **6-person busy mode** | During 11–12 and 12–1 with 6 staff, Grill 2 becomes essential (2 grillers for rush) |
 
-- **Framework**: Next.js 16.1.6 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Storage**: localStorage for data persistence
+### History
+- View the past 7 days of generated schedules
+- Shows staff roster, shift durations, grill opener, and full rotation grid per day
+
+---
 
 ## Getting Started
 
 ### Prerequisites
-
-- Node.js 18+ installed
-- npm or yarn package manager
+- [Node.js](https://nodejs.org/) 18+
+- npm, yarn, pnpm, or bun
 
 ### Installation
 
-1. Clone the repository:
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/PlntGoblin/restaurant-scheduler.git
 cd restaurant-scheduler
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Run the development server:
+### Run the Dev Server
+
 ```bash
 npm run dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+Open [http://localhost:3000](http://localhost:3000) to start scheduling.
 
-## Usage
-
-### 1. Add Staff Members
-
-Go to **Staff Management** tab:
-- Click "Add Staff Member"
-- Enter name and select seniority level
-- Set position preferences (1-5 scale)
-- Click "Save"
-
-### 2. Set Up Daily Roster
-
-Go to **Dashboard** tab:
-- Select the date
-- Add staff members working that day
-- Set their shift duration (11-1pm, 11-2pm, 12-2pm, or 1-2pm)
-- Select who opened grill (optional)
-- Toggle "One Griller Only" if needed
-- Click "Save Daily Staff"
-
-### 3. Generate Schedule
-
-The schedule will automatically generate and switch to the **Generator** tab:
-- View the rotation schedule across 3 time slots
-- Print the schedule if needed
-
-### 4. View History
-
-Go to **History** tab to see past 7 days of schedules
-
-## Position Details
-
-### All Positions
-- Grill 1, Grill 2
-- P.O.S.
-- Expo 1, Expo 2
-- Fries
-- Lobby/Dish 1, Lobby/Dish 2
-
-### Essential Positions (Always Filled)
-- P.O.S., Grill 1, Expo 1, Fries, Expo 2
-
-### Hot Positions (Limited to 1 per shift)
-- Grill 1, Grill 2, Fries
-
-## Time Slots
-
-- 11am-12pm
-- 12pm-1pm
-- 1pm-2pm
-
-## Building for Production
+### Build for Production
 
 ```bash
 npm run build
 npm start
 ```
 
-## Deployment
+---
 
-### Deploy to Vercel
+## Project Structure
 
-1. Install Vercel CLI:
-```bash
-npm install -g vercel
+```
+app/
+├── components/
+│   ├── Dashboard.tsx           # Daily roster setup
+│   ├── StaffManagement.tsx     # Staff CRUD + preferences
+│   ├── ScheduleGenerator.tsx   # Rotation algorithm + schedule display
+│   └── History.tsx             # Past 7 days of schedules
+├── layout.tsx
+├── page.tsx                    # Tab navigation
+└── globals.css
+lib/
+├── types/
+│   └── index.ts                # Shared TypeScript interfaces
+└── constants.ts                # Shared position & time slot constants
 ```
 
-2. Deploy:
-```bash
-vercel
-```
+---
 
-### Deploy to Netlify
+## Tech Stack
 
-1. Build the project:
-```bash
-npm run build
-```
+| Layer       | Technology              |
+|-------------|-------------------------|
+| Framework   | Next.js 16 (Turbopack)  |
+| UI          | React 19                |
+| Language    | TypeScript 5            |
+| Styling     | Tailwind CSS 4          |
+| Persistence | localStorage            |
 
-2. Drag and drop the `.next` folder to Netlify
+---
 
 ## License
 
 MIT
-
-## Author
-
-Created with Claude Code

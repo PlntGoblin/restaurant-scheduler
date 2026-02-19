@@ -17,11 +17,16 @@ export type Seniority = 'GM' | 'AGM' | 'Captain' | 'Team Member';
 export interface StaffMember {
   id: string;
   name: string;
-  email: string;
   positions: Position[]; // Positions they can work
   preferences: PositionPreference[];
   availability: DayAvailability[];
   seniority: Seniority;
+}
+
+export interface DailyStaff {
+  id: string;
+  name: string;
+  duration: '11-1pm' | '11-2pm' | '1-2pm' | '12-2pm';
 }
 
 export interface PositionPreference {

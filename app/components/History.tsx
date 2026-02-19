@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Position, TimeSlot } from '@/lib/types';
-
-const TIME_SLOTS: TimeSlot[] = ['11am-12pm', '12pm-1pm', '1pm-2pm'];
+import { TIME_SLOTS } from '@/lib/constants';
 
 interface HistoryEntry {
   date: string;
@@ -27,7 +26,7 @@ export default function History() {
   }, []);
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
