@@ -360,6 +360,86 @@ export default function ScheduleGenerator() {
       // Phase 2: Fill remaining non-essential positions
       assignPositions(positionsForSlot.filter(p => !essentialPositions.includes(p)));
 
+      // Phase 3: Resolve any UNFILLED positions by swapping assignments
+      // The greedy algorithm can paint itself into a corner: e.g., with 2 remaining
+      // staff and 2 positions, it picks the wrong person for the first position,
+      // leaving the last person blocked from the only remaining position.
+      const unfilledIndices: number[] = [];
+      for (let i = 0; i < assignments.length; i++) {
+        if (assignments[i].staffId === '') unfilledIndices.push(i);
+      }
+
+      if (unfilledIndices.length > 0) {
+        const unassignedStaff = availableStaff.filter(s => !assignedStaff.has(s.id));
+
+        for (const ui of unfilledIndices) {
+          const unfilledPos = assignments[ui].position;
+
+          // Try direct assignment first (unassigned staff who can fill this position)
+          const directMatch = unassignedStaff.find(s => !staffPositionHistory[s.id].has(unfilledPos));
+          if (directMatch) {
+            assignments[ui] = { position: unfilledPos, staffName: directMatch.name, staffId: directMatch.id };
+            assignedStaff.add(directMatch.id);
+            staffPositionHistory[directMatch.id].add(unfilledPos);
+            if (HOT_POSITIONS.includes(unfilledPos)) {
+              staffHotPositionCount[directMatch.id]++;
+              staffHotPositionTypes[directMatch.id].add(getHotPositionType(unfilledPos));
+            }
+            unassignedStaff.splice(unassignedStaff.indexOf(directMatch), 1);
+            continue;
+          }
+
+          // No direct match — find a swap: an assigned person who CAN do the unfilled
+          // position, whose current position an unassigned person CAN fill
+          for (const ua of unassignedStaff) {
+            let swapDone = false;
+            for (let j = 0; j < assignments.length; j++) {
+              if (assignments[j].staffId === '') continue;
+
+              const canDoUnfilled = !staffPositionHistory[assignments[j].staffId].has(unfilledPos);
+              const canFillVacated = !staffPositionHistory[ua.id].has(assignments[j].position);
+
+              if (canDoUnfilled && canFillVacated) {
+                const vacatedPos = assignments[j].position;
+                const movedId = assignments[j].staffId;
+                const movedName = assignments[j].staffName;
+
+                // Move assigned person to unfilled position
+                staffPositionHistory[movedId].delete(vacatedPos);
+                if (HOT_POSITIONS.includes(vacatedPos)) {
+                  staffHotPositionCount[movedId]--;
+                  const hType = getHotPositionType(vacatedPos);
+                  const hasOtherSameType = [...staffPositionHistory[movedId]].some(
+                    p => HOT_POSITIONS.includes(p) && getHotPositionType(p) === hType
+                  );
+                  if (!hasOtherSameType) staffHotPositionTypes[movedId].delete(hType);
+                }
+                assignments[ui] = { position: unfilledPos, staffName: movedName, staffId: movedId };
+                staffPositionHistory[movedId].add(unfilledPos);
+                if (HOT_POSITIONS.includes(unfilledPos)) {
+                  staffHotPositionCount[movedId]++;
+                  staffHotPositionTypes[movedId].add(getHotPositionType(unfilledPos));
+                }
+
+                // Put unassigned person at vacated position
+                assignments[j] = { position: vacatedPos, staffName: ua.name, staffId: ua.id };
+                assignedStaff.add(ua.id);
+                staffPositionHistory[ua.id].add(vacatedPos);
+                if (HOT_POSITIONS.includes(vacatedPos)) {
+                  staffHotPositionCount[ua.id]++;
+                  staffHotPositionTypes[ua.id].add(getHotPositionType(vacatedPos));
+                }
+
+                unassignedStaff.splice(unassignedStaff.indexOf(ua), 1);
+                swapDone = true;
+                break;
+              }
+            }
+            if (swapDone) break;
+          }
+        }
+      }
+
       newSchedule[slot] = assignments;
     });
 
@@ -453,9 +533,9 @@ export default function ScheduleGenerator() {
                       'Grill 1',
                       'Grill 2',
                       'P.O.S.',
+                      'Fries',
                       'Expo 1',
                       'Expo 2',
-                      'Fries',
                       'Lobby/Dish 1',
                       'Lobby/Dish 2'
                     ];
