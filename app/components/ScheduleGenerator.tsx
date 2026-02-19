@@ -496,7 +496,7 @@ export default function ScheduleGenerator() {
         </p>
         <button
           onClick={() => generateSchedule()}
-          className="px-6 py-3 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+          className="px-6 py-3 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
         >
           Generate Schedule
         </button>
@@ -588,7 +588,7 @@ export default function ScheduleGenerator() {
           <div className="p-6 bg-gray-50 border-t border-gray-200 flex space-x-3">
             <button
               onClick={() => generateSchedule()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+              className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
             >
               Shuffle
             </button>

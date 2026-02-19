@@ -120,7 +120,7 @@ export default function StaffManagement() {
         <div className="space-x-3">
           <button
             onClick={handleAddStaff}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+            className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
           >
             Add Staff Member
           </button>
@@ -215,7 +215,7 @@ export default function StaffManagement() {
                 </button>
                 <button
                   onClick={handleSaveStaff}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+                  className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
                 >
                   Save
                 </button>

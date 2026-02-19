@@ -146,40 +146,40 @@ export default function Home() {
           <div className="flex space-x-2">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`px-6 py-4 font-bold text-base rounded-t-lg transition-all duration-200 ${
+              className={`px-6 py-4 text-base transition-colors ${
                 activeTab === 'dashboard'
-                  ? 'bg-white text-red-700 shadow-xl transform scale-105'
-                  : 'text-white hover:bg-white/20 hover:scale-105'
+                  ? 'text-white border-b-2 border-red-400 font-bold'
+                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
               }`}
             >
               Dashboard
             </button>
             <button
               onClick={() => setActiveTab('staff')}
-              className={`px-6 py-4 font-bold text-base rounded-t-lg transition-all duration-200 ${
+              className={`px-6 py-4 text-base transition-colors ${
                 activeTab === 'staff'
-                  ? 'bg-white text-red-700 shadow-xl transform scale-105'
-                  : 'text-white hover:bg-white/20 hover:scale-105'
+                  ? 'text-white border-b-2 border-red-400 font-bold'
+                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
               }`}
             >
               Staff Management
             </button>
             <button
               onClick={() => setActiveTab('generator')}
-              className={`px-6 py-4 font-bold text-base rounded-t-lg transition-all duration-200 ${
+              className={`px-6 py-4 text-base transition-colors ${
                 activeTab === 'generator'
-                  ? 'bg-white text-red-700 shadow-xl transform scale-105'
-                  : 'text-white hover:bg-white/20 hover:scale-105'
+                  ? 'text-white border-b-2 border-red-400 font-bold'
+                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
               }`}
             >
               Generator
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-6 py-4 font-bold text-base rounded-t-lg transition-all duration-200 ${
+              className={`px-6 py-4 text-base transition-colors ${
                 activeTab === 'history'
-                  ? 'bg-white text-red-700 shadow-xl transform scale-105'
-                  : 'text-white hover:bg-white/20 hover:scale-105'
+                  ? 'text-white border-b-2 border-red-400 font-bold'
+                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
               }`}
             >
               History
