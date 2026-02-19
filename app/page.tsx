@@ -60,18 +60,40 @@ export default function Home() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
-          <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">
-            Restaurant Scheduler
-          </h1>
-          <p className="text-gray-500 text-center text-sm mb-8">
-            {isRegistering ? 'Create an account to get started' : 'Sign in to continue'}
-          </p>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4 relative overflow-hidden">
+        {/* Red accent bars */}
+        <div className="absolute top-0 left-0 right-0 h-3 bg-red-600" />
+        <div className="absolute bottom-0 left-0 right-0 h-3 bg-red-600" />
 
+        {/* Background emoji decor */}
+        <div className="absolute top-8 left-8 text-7xl opacity-10 select-none pointer-events-none">🐄</div>
+        <div className="absolute top-12 right-12 text-5xl opacity-10 select-none pointer-events-none">🍟</div>
+        <div className="absolute bottom-12 left-16 text-5xl opacity-10 select-none pointer-events-none">🍟</div>
+        <div className="absolute bottom-8 right-8 text-7xl opacity-10 select-none pointer-events-none">🐄</div>
+        <div className="absolute top-1/2 left-4 -translate-y-1/2 text-4xl opacity-5 select-none pointer-events-none">🥩</div>
+        <div className="absolute top-1/2 right-4 -translate-y-1/2 text-4xl opacity-5 select-none pointer-events-none">🥩</div>
+
+        {/* Logo */}
+        <div className="text-center mb-8 relative z-10">
+          <div className="text-5xl mb-3">🐄</div>
+          <h1 className="text-6xl font-black tracking-tight uppercase">
+            <span className="text-white">FORE</span><span className="text-red-600">FATHERS</span>
+          </h1>
+          <div className="flex items-center justify-center gap-3 mt-2">
+            <div className="h-px w-10 bg-red-600" />
+            <p className="text-red-600 text-xs font-bold tracking-widest uppercase">Staff Portal</p>
+            <div className="h-px w-10 bg-red-600" />
+          </div>
+          <p className="text-gray-500 text-xs mt-2 tracking-widest">
+            {isRegistering ? '🍟 Set up your account, patriot' : '🥩 Welcome back, patriot'}
+          </p>
+        </div>
+
+        {/* Card */}
+        <div className="relative z-10 bg-zinc-900 border border-red-800 rounded-2xl shadow-2xl p-8 w-full max-w-sm">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
                 Email
               </label>
               <input
@@ -79,14 +101,14 @@ export default function Home() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="you@example.com"
+                className="w-full px-4 py-3 border-2 border-zinc-700 rounded-lg text-white bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 placeholder-zinc-600"
+                placeholder="you@forefathers.com"
                 autoFocus
               />
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
                 Password
               </label>
               <input
@@ -94,23 +116,27 @@ export default function Home() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter password"
+                className="w-full px-4 py-3 border-2 border-zinc-700 rounded-lg text-white bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 placeholder-zinc-600"
+                placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <p className="text-red-600 text-sm font-medium text-center">{error}</p>
+              <p className="text-red-500 text-sm font-medium text-center">{error}</p>
             )}
 
             <button
               onClick={isRegistering ? handleRegister : handleLogin}
-              className="w-full py-3 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
+              className="w-full py-3 bg-red-600 text-white rounded-lg text-sm font-black hover:bg-red-700 transition-colors tracking-widest uppercase"
             >
-              {isRegistering ? 'Create Account' : 'Sign In'}
+              {isRegistering ? "Let's Go 🍟" : 'Sign In 🥩'}
             </button>
           </div>
         </div>
+
+        <p className="relative z-10 text-zinc-700 text-xs mt-8 text-center tracking-widest">
+          ★ Making history, one cheesesteak at a time ★
+        </p>
       </div>
     );
   }
