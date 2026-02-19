@@ -84,9 +84,6 @@ export default function Home() {
             <p className="text-red-600 text-xs font-bold tracking-widest uppercase">Staff Portal</p>
             <div className="h-px w-10 bg-red-600" />
           </div>
-          <p className="text-gray-500 text-xs mt-2 tracking-widest">
-            {isRegistering ? '🍟 Set up your account, patriot' : '🥩 Welcome back, patriot'}
-          </p>
         </div>
 
         {/* Card */}
@@ -143,7 +140,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
+      <nav className="bg-gradient-to-r from-black to-red-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between">
           <div className="flex space-x-2">
@@ -151,7 +148,7 @@ export default function Home() {
               onClick={() => setActiveTab('dashboard')}
               className={`px-6 py-4 font-bold text-base rounded-t-lg transition-all duration-200 ${
                 activeTab === 'dashboard'
-                  ? 'bg-white text-blue-700 shadow-xl transform scale-105'
+                  ? 'bg-white text-red-700 shadow-xl transform scale-105'
                   : 'text-white hover:bg-white/20 hover:scale-105'
               }`}
             >
@@ -161,7 +158,7 @@ export default function Home() {
               onClick={() => setActiveTab('staff')}
               className={`px-6 py-4 font-bold text-base rounded-t-lg transition-all duration-200 ${
                 activeTab === 'staff'
-                  ? 'bg-white text-blue-700 shadow-xl transform scale-105'
+                  ? 'bg-white text-red-700 shadow-xl transform scale-105'
                   : 'text-white hover:bg-white/20 hover:scale-105'
               }`}
             >
@@ -171,7 +168,7 @@ export default function Home() {
               onClick={() => setActiveTab('generator')}
               className={`px-6 py-4 font-bold text-base rounded-t-lg transition-all duration-200 ${
                 activeTab === 'generator'
-                  ? 'bg-white text-blue-700 shadow-xl transform scale-105'
+                  ? 'bg-white text-red-700 shadow-xl transform scale-105'
                   : 'text-white hover:bg-white/20 hover:scale-105'
               }`}
             >
@@ -181,7 +178,7 @@ export default function Home() {
               onClick={() => setActiveTab('history')}
               className={`px-6 py-4 font-bold text-base rounded-t-lg transition-all duration-200 ${
                 activeTab === 'history'
-                  ? 'bg-white text-blue-700 shadow-xl transform scale-105'
+                  ? 'bg-white text-red-700 shadow-xl transform scale-105'
                   : 'text-white hover:bg-white/20 hover:scale-105'
               }`}
             >
