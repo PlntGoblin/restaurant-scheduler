@@ -495,7 +495,7 @@ export default function ScheduleGenerator() {
           across the three time slots (11am-12pm, 12pm-1pm, 1pm-2pm) based on their preferences.
         </p>
         <button
-          onClick={generateSchedule}
+          onClick={() => generateSchedule()}
           className="px-6 py-3 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
         >
           Generate Schedule
@@ -585,7 +585,13 @@ export default function ScheduleGenerator() {
             </table>
           </div>
 
-          <div className="p-6 bg-gray-50 border-t border-gray-200">
+          <div className="p-6 bg-gray-50 border-t border-gray-200 flex space-x-3">
+            <button
+              onClick={() => generateSchedule()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+            >
+              Shuffle
+            </button>
             <button
               onClick={() => window.print()}
               className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700"

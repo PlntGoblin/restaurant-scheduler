@@ -113,30 +113,11 @@ export default function StaffManagement() {
     setFormData({ ...formData, preferences: newPreferences });
   };
 
-  const exportToJSON = () => {
-    const dataStr = JSON.stringify(staff, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'staff-data.json';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Staff Management</h2>
         <div className="space-x-3">
-          {staff.length > 0 && (
-            <button
-              onClick={exportToJSON}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Export to JSON
-            </button>
-          )}
           <button
             onClick={handleAddStaff}
             className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
@@ -214,19 +195,31 @@ export default function StaffManagement() {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={handleCancelEdit}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveStaff}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
-              >
-                Save
-              </button>
+            <div className="flex justify-between">
+              {editingStaff ? (
+                <button
+                  onClick={() => { handleDeleteStaff(editingStaff.id); setEditingStaff(null); }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
+                >
+                  Delete Staff Member
+                </button>
+              ) : (
+                <div />
+              )}
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveStaff}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -240,14 +233,20 @@ export default function StaffManagement() {
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Seniority
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Top Preferences
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {staff.length === 0 ? (
               <tr>
-                <td colSpan={2} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                   No staff members yet. Click &quot;Add Staff Member&quot; to get started.
                 </td>
               </tr>
@@ -266,6 +265,9 @@ export default function StaffManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {member.name}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {member.seniority || 'Team Member'}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       <div className="flex flex-wrap gap-1">
                         {topPreferences.map((pref) => (
@@ -277,6 +279,14 @@ export default function StaffManagement() {
                           </span>
                         ))}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteStaff(member.id); }}
+                        className="text-red-600 hover:text-red-900 font-medium"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 );

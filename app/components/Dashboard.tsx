@@ -50,8 +50,13 @@ export default function Dashboard({ onSaveAndGenerate }: DashboardProps) {
       setGrillOpener(savedGrillOpener);
     }
 
-    if (savedDate) {
+    const today = new Date().toISOString().split('T')[0];
+    if (savedDate && savedDate >= today) {
       setSelectedDate(savedDate);
+    } else {
+      // Reset to today if saved date is in the past
+      setSelectedDate(today);
+      localStorage.setItem('currentDate', today);
     }
 
     if (savedOneGrillerOnly) {
