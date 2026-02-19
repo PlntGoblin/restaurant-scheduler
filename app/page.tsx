@@ -76,8 +76,8 @@ export default function Home() {
         {/* Logo */}
         <div className="text-center mb-8 relative z-10">
           <div className="text-5xl mb-3">🐄</div>
-          <h1 className="text-6xl font-black tracking-tight uppercase">
-            <span className="text-white">FORE</span><span className="text-red-600">FATHERS</span>
+          <h1 className="text-7xl tracking-widest text-white uppercase" style={{ fontFamily: 'var(--font-bebas-neue)' }}>
+            FOREFATHERS
           </h1>
           <div className="flex items-center justify-center gap-3 mt-2">
             <div className="h-px w-10 bg-red-600" />
