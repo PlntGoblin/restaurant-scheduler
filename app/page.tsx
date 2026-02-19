@@ -145,6 +145,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between">
           <div className="flex space-x-2">
             <button
               onClick={() => setActiveTab('dashboard')}
@@ -185,6 +186,13 @@ export default function Home() {
               }`}
             >
               History
+            </button>
+          </div>
+            <button
+              onClick={() => { sessionStorage.removeItem('loggedIn'); setIsLoggedIn(false); }}
+              className="mb-2 px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white hover:bg-white/20 rounded transition-colors"
+            >
+              Log out
             </button>
           </div>
         </div>
