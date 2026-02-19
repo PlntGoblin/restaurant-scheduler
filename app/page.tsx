@@ -129,7 +129,7 @@ export default function Home() {
               onClick={isRegistering ? handleRegister : handleLogin}
               className="w-full py-3 bg-red-600 text-white rounded-lg text-sm font-black hover:bg-red-700 transition-colors tracking-widest uppercase"
             >
-              {isRegistering ? "Let's Go 🍟" : 'Sign In 🥩'}
+              {isRegistering ? "Let's Go 🍟" : 'Sign In'}
             </button>
           </div>
         </div>
