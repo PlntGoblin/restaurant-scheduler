@@ -5,9 +5,10 @@ import Dashboard from './components/Dashboard';
 import StaffManagement from './components/StaffManagement';
 import ScheduleGenerator from './components/ScheduleGenerator';
 import History from './components/History';
+import ToastLink from './components/ToastLink';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'staff' | 'generator' | 'history'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'staff' | 'toast' | 'generator' | 'history'>('dashboard');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -165,6 +166,16 @@ export default function Home() {
               Staff Management
             </button>
             <button
+              onClick={() => setActiveTab('toast')}
+              className={`px-6 py-4 text-base transition-colors ${
+                activeTab === 'toast'
+                  ? 'text-white border-b-2 border-red-400 font-bold'
+                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
+              }`}
+            >
+              Toast Link
+            </button>
+            <button
               onClick={() => setActiveTab('generator')}
               className={`px-6 py-4 text-base transition-colors ${
                 activeTab === 'generator'
@@ -196,7 +207,20 @@ export default function Home() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'dashboard' ? <Dashboard onSaveAndGenerate={() => setActiveTab('generator')} /> : activeTab === 'staff' ? <StaffManagement /> : activeTab === 'generator' ? <ScheduleGenerator /> : <History />}
+        {activeTab === 'dashboard' ? (
+          <Dashboard
+            onSaveAndGenerate={() => setActiveTab('generator')}
+            onManageToastLinks={() => setActiveTab('toast')}
+          />
+        ) : activeTab === 'staff' ? (
+          <StaffManagement />
+        ) : activeTab === 'toast' ? (
+          <ToastLink />
+        ) : activeTab === 'generator' ? (
+          <ScheduleGenerator />
+        ) : (
+          <History />
+        )}
       </main>
     </div>
   );
