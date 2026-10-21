@@ -211,6 +211,20 @@ This replaced a login that compared the typed password against one the browser
 had stored for itself (`localStorage['appAccount']`) — anyone could register
 their own account, and the server checked nothing at all.
 
+**Attempt limiting:** 5 failed attempts per caller per 15 minutes, matching
+Forecast86's sign-in limiter. The limit is checked *before* the password is
+compared, so a blocked caller learns nothing from the response; a successful
+sign-in clears that caller's failures, because a password an entire shift
+shares gets fat-fingered and nobody should be one slip from a lockout. There
+is no global cap on purpose — that would let anyone lock the restaurant out of
+its own scheduler mid-rush.
+
+Be clear about what it is worth: the counters live in memory in one serverless
+instance, so an attacker spreading requests across instances gets more than 5,
+and a quiet period resets them. It is a speed bump, not a lock. Doing it
+properly needs a durable shared store, and this app deliberately has no
+writable one — its only database credential is read-only.
+
 ## Where the Toast links come from
 
 Toast's schedule identifies people by GUID and nothing else, so the app needs a
