@@ -61,6 +61,12 @@ export default function Home() {
         return;
       }
       const body = await res.json().catch(() => ({}));
+      if (body?.error === 'rate_limited') {
+        // Keep what they typed: after a lockout the usual cause is a typo they
+        // can see and fix, and clearing it makes them start from nothing.
+        setError(body.message ?? 'Too many attempts. Try again shortly.');
+        return;
+      }
       setError(
         body?.error === 'auth_not_configured'
           ? 'This deployment has no staff password set yet.'
