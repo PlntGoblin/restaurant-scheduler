@@ -241,3 +241,48 @@ export function reconcileClockIns(
 
   return { possibleNoShows, unscheduled, unlinkedGuids: [...unlinked] };
 }
+
+/**
+ * Is it safe to apply Toast's answer without asking a person first?
+ *
+ * Two ways the answer is no, both learned the hard way on 2026-10-20 when a
+ * production roster was silently emptied:
+ *
+ *  1. The roster carries a human's edits -- or carries NO provenance marker
+ *     at all, which means the same thing. Every roster built before this
+ *     feature existed has no marker, and reading "no marker" as "untouched"
+ *     is what did the damage. Unknown provenance is a person's work until
+ *     proven otherwise.
+ *
+ *  2. Applying would empty a roster that has people in it. That is never a
+ *     routine refresh: in practice it means nobody is linked to Toast yet, so
+ *     Toast's answer is empty through no fault of the schedule, and applying
+ *     it deletes a real roster to match a lie.
+ */
+export function needsConfirmation(opts: {
+  /** True when a person edited this roster, OR provenance is unknown. */
+  edited: boolean;
+  /** How many people Toast says are on. */
+  nextCount: number;
+  /** How many are on the roster right now. */
+  currentCount: number;
+}): boolean {
+  if (opts.edited) return true;
+  return opts.nextCount === 0 && opts.currentCount > 0;
+}
+
+/**
+ * Whether a stored roster may be auto-replaced from Toast.
+ *
+ * `meta` is null for any roster written before provenance was tracked. A
+ * non-empty roster with no marker is somebody's work; an empty one has
+ * nothing to lose.
+ */
+export function isRosterProtected(
+  meta: { date: string; edited: boolean } | null,
+  date: string,
+  rosterCount: number,
+): boolean {
+  if (!meta) return rosterCount > 0;
+  return meta.edited && meta.date === date;
+}
