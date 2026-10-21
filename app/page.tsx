@@ -10,54 +10,78 @@ import ToastLink from './components/ToastLink';
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'staff' | 'toast' | 'generator' | 'history'>('dashboard');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [email, setEmail] = useState('');
+  const [checkingSession, setCheckingSession] = useState(true);
   const [password, setPassword] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  /**
+   * Ask the SERVER whether we are signed in.
+   *
+   * This used to read `sessionStorage['loggedIn']`, a flag the browser set for
+   * itself after checking a password the browser also stored. Nothing about
+   * that was verifiable, and it gated nothing: the API routes answered anyone.
+   * The session now lives in an httpOnly cookie that this code cannot read or
+   * forge -- hence the round trip.
+   */
   useEffect(() => {
-    if (sessionStorage.getItem('loggedIn') === 'true') {
-      setIsLoggedIn(true);
-    }
-    if (!localStorage.getItem('appAccount')) {
-      setIsRegistering(true);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/status');
+        const body = await res.json();
+        if (!cancelled && body?.authenticated) setIsLoggedIn(true);
+      } catch {
+        // Offline or mid-deploy: show the login screen rather than guessing.
+      } finally {
+        if (!cancelled) setCheckingSession(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleRegister = () => {
+  const handleLogin = async () => {
     setError('');
-    if (!email || !email.includes('@')) {
-      setError('Please enter a valid email');
+    if (!password) {
+      setError('Enter the staff password');
       return;
     }
-    if (password.length < 4) {
-      setError('Password must be at least 4 characters');
-      return;
-    }
-    localStorage.setItem('appAccount', JSON.stringify({ email, password }));
-    sessionStorage.setItem('loggedIn', 'true');
-    setIsLoggedIn(true);
-  };
-
-  const handleLogin = () => {
-    setError('');
-    const saved = localStorage.getItem('appAccount');
-    if (!saved) return;
-    const account = JSON.parse(saved);
-    if (email === account.email && password === account.password) {
-      sessionStorage.setItem('loggedIn', 'true');
-      setIsLoggedIn(true);
-    } else {
-      setError('Incorrect email or password');
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        setPassword('');
+        setIsLoggedIn(true);
+        return;
+      }
+      const body = await res.json().catch(() => ({}));
+      setError(
+        body?.error === 'auth_not_configured'
+          ? 'This deployment has no staff password set yet.'
+          : 'Incorrect password',
+      );
       setPassword('');
+    } catch {
+      setError('Could not reach the server');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      isRegistering ? handleRegister() : handleLogin();
-    }
+    if (e.key === 'Enter' && !submitting) handleLogin();
   };
+
+  // Don't flash the login screen at someone who is already signed in.
+  if (checkingSession) {
+    return <div className="min-h-screen bg-black" />;
+  }
 
   if (!isLoggedIn) {
     return (
@@ -92,22 +116,7 @@ export default function Home() {
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="w-full px-4 py-3 border-2 border-zinc-700 rounded-lg text-white bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 placeholder-zinc-600"
-                placeholder="you@forefathers.com"
-                autoFocus
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                Password
+                Staff Password
               </label>
               <input
                 type="password"
@@ -116,6 +125,7 @@ export default function Home() {
                 onKeyDown={handleKeyDown}
                 className="w-full px-4 py-3 border-2 border-zinc-700 rounded-lg text-white bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 placeholder-zinc-600"
                 placeholder="••••••••"
+                autoFocus
               />
             </div>
 
@@ -124,10 +134,11 @@ export default function Home() {
             )}
 
             <button
-              onClick={isRegistering ? handleRegister : handleLogin}
-              className="w-full py-3 bg-red-600 text-white rounded-lg text-sm font-black hover:bg-red-700 transition-colors tracking-widest uppercase"
+              onClick={handleLogin}
+              disabled={submitting}
+              className="w-full py-3 bg-red-600 text-white rounded-lg text-sm font-black hover:bg-red-700 disabled:opacity-60 transition-colors tracking-widest uppercase"
             >
-              {isRegistering ? "Let's Go 🍟" : 'Sign In'}
+              {submitting ? 'Signing in…' : 'Sign In'}
             </button>
           </div>
         </div>
@@ -197,7 +208,10 @@ export default function Home() {
             </button>
           </div>
             <button
-              onClick={() => { sessionStorage.removeItem('loggedIn'); setIsLoggedIn(false); }}
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+                setIsLoggedIn(false);
+              }}
               className="mb-2 px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white hover:bg-white/20 rounded transition-colors"
             >
               Log out

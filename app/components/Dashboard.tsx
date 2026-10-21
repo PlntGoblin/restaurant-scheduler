@@ -9,8 +9,11 @@ import {
   isRosterProtected,
   loadStaff,
   needsConfirmation,
+  saveStaff,
   type RosterDiff,
 } from '@/lib/toast/roster';
+import { applyEmployeeLinks } from '@/lib/toast/links';
+import type { EmployeeLink } from '@/lib/types';
 
 interface DashboardProps {
   onSaveAndGenerate: () => void;
@@ -68,6 +71,8 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
   const [pendingDiff, setPendingDiff] = useState<RosterDiff | null>(null);
   const [shiftByStaffId, setShiftByStaffId] = useState<Map<string, ToastShiftDTO>>(new Map());
   const [unlinkedShifts, setUnlinkedShifts] = useState<ToastShiftDTO[]>([]);
+  /** What the last pull had to do to the staff list to resolve Toast's GUIDs. */
+  const [linkNote, setLinkNote] = useState<string | null>(null);
   const [openerCandidates, setOpenerCandidates] = useState<RosterDiff['openerCandidates']>([]);
   /** Dates already auto-pulled this session, so a re-render never re-fetches. */
   const autoPulled = useRef<Set<string>>(new Set());
@@ -214,7 +219,55 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
           return;
         }
 
-        const diff = buildRosterDiff(shifts, roster, staff);
+        // Toast named these people by GUID. Turn the GUIDs into humans using
+        // the mapping My Forefathers already maintains, creating staff records
+        // for anyone this app has never heard of -- without a record the
+        // generator cannot place them at a position, so resolving the name is
+        // not enough on its own.
+        //
+        // Additive only, and best-effort: if the database is unreachable the
+        // pull still works off whatever links were set by hand.
+        let effectiveStaff = staff;
+        let note: string | null = null;
+        try {
+          const guidsToday = new Set(
+            shifts.map((s) => s.employeeGuid).filter((g): g is string => Boolean(g)),
+          );
+          const linkRes = await fetch('/api/links');
+          const linkBody = await linkRes.json();
+          const links: EmployeeLink[] = Array.isArray(linkBody?.links) ? linkBody.links : [];
+          if (linkRes.ok && links.length > 0) {
+            const applied = applyEmployeeLinks(staff, links, guidsToday);
+            if (applied.changed) {
+              saveStaff(applied.staff);
+              setStaffRoster(applied.staff);
+              effectiveStaff = applied.staff;
+              const bits: string[] = [];
+              if (applied.created.length > 0) {
+                bits.push(
+                  `added ${applied.created.length} from Toast (${applied.created
+                    .map((m) => m.name)
+                    .join(', ')})`,
+                );
+              }
+              if (applied.attached.length > 0) {
+                bits.push(`linked ${applied.attached.length} existing`);
+              }
+              note = bits.join(' · ');
+            }
+            if (applied.ambiguous.length > 0) {
+              const names = applied.ambiguous.map((a) => a.name).join(', ');
+              note = [note, `couldn’t link ${names} — duplicate names in Staff`]
+                .filter(Boolean)
+                .join(' · ');
+            }
+          }
+        } catch {
+          // Leave effectiveStaff alone; manual links still apply.
+        }
+        setLinkNote(note);
+
+        const diff = buildRosterDiff(shifts, roster, effectiveStaff);
         setUnlinkedShifts(diff.unlinked);
 
         const unchanged =
@@ -260,7 +313,13 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
   // The point of the whole feature: open the app, the crew is already there.
   useEffect(() => {
     if (!hydrated) return;
-    if (linkedCount === 0) return;          // nothing could resolve anyway
+    // There used to be a `linkedCount === 0` bail here, on the reasoning that
+    // a roster with no Toast links could not resolve anything. That is no
+    // longer true: the links now come from the Forefathers database at pull
+    // time, and a fresh browser legitimately starts with zero of them -- which
+    // is exactly the state that made the feature look broken. The data-loss
+    // guards (`isRosterProtected` above, `needsConfirmation` in the pull) are
+    // what protect the roster, not this.
     if (rosterEdited) return;               // a person disagreed; leave it alone
     if (autoPulled.current.has(selectedDate)) return;
     autoPulled.current.add(selectedDate);
@@ -268,7 +327,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     // Deliberately keyed on the date only: re-running on every roster keystroke
     // would re-fetch Toast while someone is mid-edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, selectedDate, linkedCount, rosterEdited]);
+  }, [hydrated, selectedDate, rosterEdited]);
 
   const handleRefresh = () => {
     autoPulled.current.add(selectedDate);
@@ -399,28 +458,17 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
             </div>
           )}
 
+          {linkNote && (
+            <p className="text-xs text-gray-600">
+              From the Forefathers roster: {linkNote}.
+            </p>
+          )}
+
           {rosterEdited && (
             <p className="text-xs text-gray-600">
               You&apos;ve edited this roster, so it won&apos;t refresh on its own. Press Refresh to
               see what Toast says.
             </p>
-          )}
-
-          {linkedCount === 0 && staffRoster.length > 0 && (
-            <div className="rounded-md border-2 border-amber-300 bg-amber-50 p-3">
-              <p className="text-sm font-bold text-amber-900">No staff are linked to Toast yet.</p>
-              <p className="text-sm text-amber-800 mt-1">
-                Pair each person with their Toast record once and this fills itself in from then on.
-              </p>
-              {onManageToastLinks && (
-                <button
-                  onClick={onManageToastLinks}
-                  className="mt-2 px-3 py-1 bg-amber-600 text-white rounded text-xs font-bold hover:bg-amber-700"
-                >
-                  Open Toast Link
-                </button>
-              )}
-            </div>
           )}
 
           {unlinkedShifts.length > 0 && (
@@ -433,7 +481,11 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
               </p>
               <p className="text-sm text-amber-800 mt-1">
                 {unlinkedShifts.length === 1 ? 'They are' : 'They are'} working and have been left
-                off the list below.
+                off the list below. The Forefathers roster has no Toast link for{' '}
+                {unlinkedShifts.length === 1 ? 'them' : 'them'} either, so nobody can resolve{' '}
+                {unlinkedShifts.length === 1 ? 'this one' : 'these'} automatically — pair{' '}
+                {unlinkedShifts.length === 1 ? 'them' : 'them'} here, or have it fixed in My
+                Forefathers so every device gets it.
               </p>
               {onManageToastLinks && (
                 <button
