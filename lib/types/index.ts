@@ -72,3 +72,21 @@ export interface PositionHistory {
   count: number; // How many times they've worked this position in the current period
   lastWorked?: Date;
 }
+
+/**
+ * One person's Toast identity, as recorded in the My Forefathers database.
+ *
+ * This is the mapping that lets a Toast shift (which carries only a GUID)
+ * name a human. It is READ from Supabase and never written here -- the
+ * authority for it is Forecast86's `link_toast_employees.py`.
+ */
+export interface EmployeeLink {
+  /** Legal name as Forefathers records it, e.g. "Antoinette McBride". */
+  name: string;
+  /** Every Toast GUID belonging to this person -- one per store they work. */
+  toastGuids: string[];
+  /** Forefathers level, e.g. "team_member" | "gm". Null when unset. */
+  level: string | null;
+  /** Home store, e.g. "tempe". Null when unset. */
+  store: string | null;
+}

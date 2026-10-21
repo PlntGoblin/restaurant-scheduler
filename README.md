@@ -196,17 +196,57 @@ standing on the floor at the wrong hour.
 Shifts outside the rush (7am prep, evening close) are ignored by design, and the
 pull says so rather than reporting that Toast returned nothing.
 
+## Sign-in
+
+One shared password for the store's managers, set as `SCHEDULER_PASSWORD` and
+checked on the server. Signing in sets a signed, httpOnly session cookie that
+lasts 30 days; `proxy.ts` requires it on every `/api/*` route except
+`/api/auth/*`.
+
+The gate **fails closed**: if `SCHEDULER_PASSWORD` or
+`SCHEDULER_SESSION_SECRET` is missing, the guarded routes return 503 instead of
+serving data. A gate that disables itself when misconfigured is not a gate.
+
+This replaced a login that compared the typed password against one the browser
+had stored for itself (`localStorage['appAccount']`) — anyone could register
+their own account, and the server checked nothing at all.
+
+## Where the Toast links come from
+
+Toast's schedule identifies people by GUID and nothing else, so the app needs a
+GUID → person mapping. That mapping is **not maintained here**. Forecast86's
+`scripts/link_toast_employees.py` already keeps it current in
+`employees.external_ids->'toast_guids'`, including the awkward parts — one
+human has a different GUID at every store they can work, and Devin Sergi has
+three.
+
+Set `SCHEDULER_LINKS_DB_URL` and `/api/links` reads that mapping, so a pull can
+name the people on Toast's schedule and create staff records for anyone this
+app has never heard of. Both effects are **additive**: a refresh never removes
+or renames an existing record.
+
+The credential must be the `scheduler_reader` role from
+`supabase/phase36_scheduler_links.sql` in the Forecast86 repo, which can
+`SELECT` exactly one view of names and GUIDs — not the postgres superuser URL.
+If it leaks, what leaks is employee names and Toast GUIDs, which this app shows
+its users anyway.
+
+Without the variable the app still works; it just falls back to links paired by
+hand in **Toast Link**, which live in one browser and go stale the next time
+someone is hired.
+
 ### Known limits
 
-- **The `/api/toast/*` routes are not authenticated.** The app's sign-in is
-  `localStorage` only and checks nothing server-side, so anyone who knows the
-  deployment URL can read employee names and Toast employee IDs. This was a
-  deliberate deferral, not an oversight. Closing it means a real session: one
-  `SCHEDULER_PASSWORD` env var, a login route that sets a signed httpOnly
-  cookie, and a `middleware.ts` gating `/api/toast/*`.
-- **Toast links live in `localStorage`, per browser.** Link staff on a laptop
-  and a store tablet still shows everyone as unlinked. Staff Management's JSON
-  export is the stopgap.
+- **Nicknames still need a human.** The database is authoritative about
+  GUID → legal name; it knows nothing about the nicknames typed into this app.
+  "Red" and "Robert Wressell" share no letters, so the app reports the pairing
+  as unresolved rather than guessing it. Pair those once in **Toast Link**.
+- **Someone unlinked in My Forefathers is unlinked here too.** They appear in
+  the "not linked" banner by shift time. Fixing it there fixes it on every
+  device; fixing it here fixes it on one.
+- **Hand-paired links still live in `localStorage`, per browser.** Only the
+  links read from the database are shared. Staff Management's JSON export is
+  the stopgap for the rest.
 - **Reads only.** Toast's Labor API is read-only on this access tier. The
   generated rotation stays in this app; nothing is written back to Toast.
 - **Toast mirrors what's been published.** If next week isn't published yet, a
