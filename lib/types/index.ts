@@ -21,6 +21,19 @@ export interface StaffMember {
   preferences: PositionPreference[];
   availability: DayAvailability[];
   seniority: Seniority;
+  /**
+   * Every Toast employee GUID belonging to this person. The join key for
+   * pulling the roster from Toast.
+   *
+   * An array, not a single value, even though this deployment is one store:
+   * a human has a DIFFERENT Toast GUID at every location they can work, and
+   * 20+ Forefathers staff pick up shifts away from their home store. One
+   * value silently loses their shifts the day they cover elsewhere.
+   *
+   * Absent or empty means "not linked yet" -- the pull reports them rather
+   * than guessing from the name.
+   */
+  toastGuids?: string[];
 }
 
 export interface DailyStaff {

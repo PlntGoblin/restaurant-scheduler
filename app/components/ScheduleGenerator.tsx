@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Position, TimeSlot, StaffMember, PositionPreference, DailyStaff } from '@/lib/types';
 import { ALL_POSITIONS, TIME_SLOTS } from '@/lib/constants';
+import { todayLocal } from '@/lib/toast/time';
 
 interface ScheduleAssignment {
   position: Position;
@@ -459,7 +460,10 @@ export default function ScheduleGenerator() {
     localStorage.setItem('currentActivePositions', JSON.stringify(activePositionsArray));
 
     // Update history with the generated schedule
-    const currentDate = localStorage.getItem('currentDate') || new Date().toISOString().split('T')[0];
+    // todayLocal() rather than toISOString(), which is UTC and rolls over to
+    // tomorrow mid-afternoon Phoenix time -- filing the schedule under the
+    // wrong day in History. Matches the Dashboard's date exactly.
+    const currentDate = localStorage.getItem('currentDate') || todayLocal();
     const historyKey = 'scheduleHistory';
     const existingHistory = localStorage.getItem(historyKey);
     let updatedHistory: any[] = existingHistory ? JSON.parse(existingHistory) : [];

@@ -68,6 +68,10 @@ export default function StaffManagement() {
       preferences: formData.preferences,
       availability: [], // Everyone works all days
       seniority: formData.seniority,
+      // Carried over explicitly: this form has no Toast field, so rebuilding
+      // the record from it would silently drop the link and quietly remove
+      // this person from every future Toast pull.
+      toastGuids: editingStaff?.toastGuids,
     };
 
     const updatedStaff = editingStaff
@@ -238,6 +242,9 @@ export default function StaffManagement() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Top Preferences
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Toast
+              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
@@ -246,7 +253,7 @@ export default function StaffManagement() {
           <tbody className="bg-white divide-y divide-gray-200">
             {staff.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                   No staff members yet. Click &quot;Add Staff Member&quot; to get started.
                 </td>
               </tr>
@@ -279,6 +286,19 @@ export default function StaffManagement() {
                           </span>
                         ))}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {(member.toastGuids ?? []).length > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800">
+                          Linked
+                          {(member.toastGuids ?? []).length > 1 &&
+                            ` (${(member.toastGuids ?? []).length})`}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                          Not linked
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <button
