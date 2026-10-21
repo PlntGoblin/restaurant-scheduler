@@ -14,7 +14,12 @@ import {
 } from './client';
 import { laborWindow, parseLocalDate } from './time';
 import type { ToastShift, ToastTimeEntry } from './shifts';
-import { type ToastEmployee, type ToastEmployeeDTO, toEmployeeDTO } from './match';
+import {
+  isRealPerson,
+  type ToastEmployee,
+  type ToastEmployeeDTO,
+  toEmployeeDTO,
+} from './match';
 
 /**
  * A short cache in front of Toast.
@@ -46,6 +51,9 @@ export async function fetchEmployees(): Promise<ToastEmployeeDTO[]> {
     const raw = await toastGet<ToastEmployee[]>('/labor/v1/employees');
     return (Array.isArray(raw) ? raw : [])
       .filter((e) => e && !e.deleted && e.guid)
+      // Toast's own system accounts are not staff and must never be offered
+      // as someone to schedule.
+      .filter(isRealPerson)
       .map(toEmployeeDTO)
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   });
