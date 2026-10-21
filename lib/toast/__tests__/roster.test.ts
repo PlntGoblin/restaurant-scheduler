@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildRosterDiff, reconcileClockIns, staffFromToastEmployee } from '../roster';
+import {
+  buildRosterDiff,
+  isRosterProtected,
+  needsConfirmation,
+  reconcileClockIns,
+  staffFromToastEmployee,
+} from '../roster';
 import { toEmployeeDTO } from '../match';
 import type { ToastShiftDTO } from '../shifts';
 import type { DailyStaff, StaffMember } from '@/lib/types';
@@ -222,5 +228,55 @@ describe('reconcileClockIns', () => {
       shiftByStaffId,
     );
     expect(r.unlinkedGuids).toEqual(['mystery']);
+  });
+});
+
+describe('isRosterProtected', () => {
+  it('protects a roster with no provenance marker', () => {
+    // THE 2026-10-20 PRODUCTION BUG. Every roster built before provenance
+    // was tracked has no marker. Reading that as "untouched" let the first
+    // auto-pull silently replace a hand-built roster with Toast's answer.
+    expect(isRosterProtected(null, '2026-10-21', 7)).toBe(true);
+  });
+
+  it('does not protect an empty roster with no marker', () => {
+    // Nothing to lose, so filling it in is the whole point of the feature.
+    expect(isRosterProtected(null, '2026-10-21', 0)).toBe(false);
+  });
+
+  it('protects a roster a person edited today', () => {
+    expect(isRosterProtected({ date: '2026-10-21', edited: true }, '2026-10-21', 5)).toBe(true);
+  });
+
+  it('does not protect a roster this code wrote from Toast', () => {
+    expect(isRosterProtected({ date: '2026-10-21', edited: false }, '2026-10-21', 5)).toBe(false);
+  });
+
+  it('does not carry yesterday’s edits forward to today', () => {
+    expect(isRosterProtected({ date: '2026-10-20', edited: true }, '2026-10-21', 5)).toBe(false);
+  });
+});
+
+describe('needsConfirmation', () => {
+  it('asks before emptying a roster that has people in it', () => {
+    // Toast returning nobody almost always means nobody is linked yet, not
+    // that every shift was cancelled. Applying it deletes a real roster.
+    expect(needsConfirmation({ edited: false, nextCount: 0, currentCount: 7 })).toBe(true);
+  });
+
+  it('applies silently when filling an empty roster', () => {
+    expect(needsConfirmation({ edited: false, nextCount: 7, currentCount: 0 })).toBe(false);
+  });
+
+  it('applies silently when refreshing an untouched Toast roster', () => {
+    expect(needsConfirmation({ edited: false, nextCount: 6, currentCount: 7 })).toBe(false);
+  });
+
+  it('always asks once a person has edited', () => {
+    expect(needsConfirmation({ edited: true, nextCount: 7, currentCount: 7 })).toBe(true);
+  });
+
+  it('does not fuss over an empty roster staying empty', () => {
+    expect(needsConfirmation({ edited: false, nextCount: 0, currentCount: 0 })).toBe(false);
   });
 });

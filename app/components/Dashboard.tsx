@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DailyStaff, StaffMember } from '@/lib/types';
 import { todayLocal } from '@/lib/toast/time';
 import type { ToastShiftDTO } from '@/lib/toast/shifts';
-import { buildRosterDiff, loadStaff, type RosterDiff } from '@/lib/toast/roster';
+import {
+  buildRosterDiff,
+  isRosterProtected,
+  loadStaff,
+  needsConfirmation,
+  type RosterDiff,
+} from '@/lib/toast/roster';
 
 interface DashboardProps {
   onSaveAndGenerate: () => void;
@@ -106,9 +112,15 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     setSelectedDate(date);
     if (date !== savedDate) localStorage.setItem('currentDate', date);
 
-    // Edits only protect the day they were made on. Yesterday's hand-tuned
+    // A missing marker means UNKNOWN provenance, which must be treated as a
+    // human's work -- never as "safe to overwrite". Every roster built before
+    // this feature shipped has no marker, and reading that as "untouched"
+    // silently replaced a hand-built roster with Toast's answer on first load.
+    // Only a roster this code wrote from Toast is ever safe to auto-replace.
+    //
+    // Edits still only protect the day they were made on: yesterday's tuned
     // roster is not a reason to refuse to fill in today.
-    setRosterEdited(Boolean(meta?.edited) && meta?.date === date);
+    setRosterEdited(isRosterProtected(meta, date, roster.length));
 
     if (savedOneGrillerOnly) setOneGrillerOnly(savedOneGrillerOnly === 'true');
 
@@ -134,8 +146,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     // those edits no longer describe what is on screen, so the new date gets
     // to auto-fill like any other untouched day -- otherwise one removal this
     // morning would stop tomorrow from ever filling itself in.
-    const meta = loadMeta();
-    setRosterEdited(Boolean(meta?.edited) && meta?.date === selectedDate);
+    setRosterEdited(isRosterProtected(loadMeta(), selectedDate, workingToday.length));
     // Everything below came from a different day's shifts.
     setPendingDiff(null);
     setShiftByStaffId(new Map());
@@ -219,7 +230,17 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
           return;
         }
 
-        if (edited) {
+        // Wiping a roster that HAS people down to nobody is never a routine
+        // refresh. In practice it means nobody is linked to Toast yet, so
+        // Toast's answer is empty through no fault of the schedule -- and
+        // applying it would delete a real roster to match a lie. Always ask.
+        const confirm = needsConfirmation({
+          edited,
+          nextCount: diff.next.length,
+          currentCount: roster.length,
+        });
+
+        if (confirm) {
           setPendingDiff(diff);
           setToastStatus({ kind: 'idle' });
         } else {
@@ -428,7 +449,17 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
           {/* Only ever shown when there are edits that would be lost. ----- */}
           {pendingDiff && (
             <div className="rounded-md border-2 border-gray-400 bg-white p-4">
-              <h3 className="text-base font-bold text-gray-900">Toast disagrees with your changes</h3>
+              <h3 className="text-base font-bold text-gray-900">
+                {pendingDiff.next.length === 0
+                  ? 'Toast would clear this roster'
+                  : 'Toast disagrees with your changes'}
+              </h3>
+              {pendingDiff.next.length === 0 && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Usually this means nobody is linked to Toast yet, not that the shift was
+                  cancelled. Keep what you have unless you know otherwise.
+                </p>
+              )}
               <div className="mt-3 space-y-2 text-sm">
                 {pendingDiff.added.length > 0 && (
                   <p className="text-green-800">
