@@ -164,21 +164,25 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     setToastStatus({ kind: 'idle' });
   }, [selectedDate]);
 
+  // Auto-fill the opener (highest Grill preference among the early clock-ins;
+  // rule in buildRosterDiff) -- but only into an EMPTY slot or one pointing at
+  // somebody no longer on today's roster. A person's explicit pick for today
+  // always survives a refresh; the functional update reads the current value
+  // so callers can stay keyed on the date alone. Called from BOTH pull
+  // outcomes: an applied diff and the far more common "nothing changed"
+  // refresh -- the opener question exists every morning either way.
+  const fillOpener = useCallback((diff: RosterDiff) => {
+    if (!diff.suggestedGrillOpenerId) return;
+    const onToday = new Set(diff.next.map((r) => r.id));
+    setGrillOpener((prev) => (prev && onToday.has(prev) ? prev : diff.suggestedGrillOpenerId!));
+  }, []);
+
   const applyDiff = useCallback((diff: RosterDiff) => {
     setWorkingToday(diff.next);
     saveRoster(diff.next, false);
     setShiftByStaffId(diff.shiftByStaffId);
     setOpenerCandidates(diff.openerCandidates);
-    // Auto-fill the opener (highest Grill preference among the early
-    // clock-ins; rule in buildRosterDiff) -- but only into an EMPTY slot or
-    // one pointing at somebody no longer on today's roster. A person's
-    // explicit pick for today always survives a refresh; the functional
-    // update reads the current value so this callback can stay keyed on the
-    // date alone.
-    if (diff.suggestedGrillOpenerId) {
-      const onToday = new Set(diff.next.map((r) => r.id));
-      setGrillOpener((prev) => (prev && onToday.has(prev) ? prev : diff.suggestedGrillOpenerId!));
-    }
+    fillOpener(diff);
     setPendingDiff(null);
     setIsSaved(false);
     // No status line here on purpose. "6 on the lunch rush" said nothing the
@@ -285,6 +289,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
         if (unchanged) {
           setShiftByStaffId(diff.shiftByStaffId);
           setOpenerCandidates(diff.openerCandidates);
+          fillOpener(diff);
           setToastStatus({ kind: 'idle' });
           return;
         }
@@ -313,7 +318,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
         });
       }
     },
-    [applyDiff],
+    [applyDiff, fillOpener],
   );
 
   // The point of the whole feature: open the app, the crew is already there.
