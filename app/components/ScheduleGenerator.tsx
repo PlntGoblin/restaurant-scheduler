@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Position, TimeSlot, StaffMember, PositionPreference, DailyStaff } from '@/lib/types';
 import { ALL_POSITIONS, TIME_SLOTS } from '@/lib/constants';
+import { positionDot, positionPill } from '@/lib/positionStyle';
 import { todayLocal } from '@/lib/toast/time';
 
 interface ScheduleAssignment {
@@ -570,7 +571,10 @@ export default function ScheduleGenerator() {
                   return (
                     <tr key={position}>
                       <td className="px-6 py-4 whitespace-nowrap text-base font-bold text-gray-900">
-                        {position}
+                        <span className="inline-flex items-center gap-2.5">
+                          <span className={`h-2.5 w-2.5 rounded-full ${positionDot(position)}`} aria-hidden="true" />
+                          {position}
+                        </span>
                       </td>
                       {TIME_SLOTS.map(slot => {
                         const assignment = schedule[slot].find(a => a.position === position);
@@ -579,7 +583,9 @@ export default function ScheduleGenerator() {
                         return (
                           <td key={slot} className="px-6 py-4 whitespace-nowrap text-center">
                             {staffName && staffName !== 'UNFILLED' ? (
-                              <span className="inline-flex items-center px-4 py-2 rounded-lg text-lg font-bold bg-blue-100 text-blue-900">
+                              <span
+                                className={`inline-flex items-center rounded-xl px-4 py-2 text-lg font-bold text-white shadow-lg ${positionPill(position)}`}
+                              >
                                 {staffName}
                               </span>
                             ) : (
