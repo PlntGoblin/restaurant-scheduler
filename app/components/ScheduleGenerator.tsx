@@ -498,7 +498,7 @@ export default function ScheduleGenerator() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="glass rounded-2xl p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Generate Today's Rotation Schedule</h2>
         <p className="text-gray-600 mb-6">
           Generate the lunch rush rotation schedule for today. Staff will rotate through all 8 positions
@@ -513,7 +513,7 @@ export default function ScheduleGenerator() {
       </div>
 
       {schedule && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="glass rounded-2xl overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-xl font-bold text-gray-900">Rotation Schedule</h3>
             <p className="text-sm font-medium text-gray-600 mt-1">
@@ -523,7 +523,7 @@ export default function ScheduleGenerator() {
 
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50/60">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Position
@@ -535,7 +535,7 @@ export default function ScheduleGenerator() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white/40 divide-y divide-gray-200">
                 {activePositions
                   // Sort positions to ensure Grill 2 appears right after Grill 1
                   .sort((a, b) => {

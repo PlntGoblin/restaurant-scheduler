@@ -130,7 +130,15 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     // roster is not a reason to refuse to fill in today.
     setRosterEdited(isRosterProtected(meta, date, roster.length));
 
-    if (savedOneGrillerOnly) setOneGrillerOnly(savedOneGrillerOnly === 'true');
+    // Slow Day is a PER-DAY call, never a standing setting: it survives a
+    // reload of the same day but a new date always starts OFF. Left sticky,
+    // one slow Sunday quietly ran every following weekday on one griller.
+    if (savedOneGrillerOnly && date === savedDate) {
+      setOneGrillerOnly(savedOneGrillerOnly === 'true');
+    } else if (savedOneGrillerOnly) {
+      // The generator reads this key directly; clear the stale day's value.
+      localStorage.setItem('oneGrillerOnly', 'false');
+    }
 
     setHydrated(true);
     setTimeout(() => { hasMounted.current = true; }, 0);
@@ -161,6 +169,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     setUnlinkedShifts([]);
     setOpenerCandidates([]);
     setGrillOpener('');
+    setOneGrillerOnly(false);
     setToastStatus({ kind: 'idle' });
   }, [selectedDate]);
 
@@ -428,7 +437,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
 
   return (
     <div className="space-y-6">
-      <div className={`rounded-lg shadow overflow-hidden ${isSaved ? 'bg-gray-300' : 'bg-white'}`}>
+      <div className={`glass rounded-2xl overflow-hidden ${isSaved ? 'opacity-75 saturate-50' : ''}`}>
         {/* ------------------------------------------------------------- */}
         {/* Header: who's on, the date, and the one button that matters.   */}
         {/* ------------------------------------------------------------- */}
@@ -462,7 +471,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
         </div>
 
         {/* Status strip ------------------------------------------------- */}
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 space-y-3">
+        <div className="px-6 py-3 bg-white/30 border-b border-gray-200 space-y-3">
           {/* The two settings that change what Generate produces. They used to
               live in cards below the fold, which meant the slow-day toggle got
               missed on exactly the slow days it exists for. Both explain
@@ -645,14 +654,14 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className={isSaved ? 'bg-gray-200' : 'bg-gray-50'}>
+              <thead className={isSaved ? 'bg-gray-200/60' : 'bg-gray-50/60'}>
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shift Duration</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className={`divide-y divide-gray-200 ${isSaved ? 'bg-gray-300' : 'bg-white'}`}>
+              <tbody className={`divide-y divide-gray-200 ${isSaved ? 'bg-gray-200/40' : 'bg-white/40'}`}>
                 {workingToday.map((staff) => (
                   <tr key={staff.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-base font-semibold text-gray-900">
@@ -708,7 +717,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
         )}
 
         {/* Add someone Toast doesn't know about ------------------------- */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-white">
+        <div className="px-6 py-4 border-t border-gray-200">
           {showManualAdd ? (
             <div className="flex flex-wrap gap-3 items-end">
               <div className="flex-1 min-w-[12rem]">
@@ -766,7 +775,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
           )}
         </div>
 
-        <div className={`p-6 border-t border-gray-200 ${isSaved ? 'bg-gray-200' : 'bg-gray-50'}`}>
+        <div className={`p-6 border-t border-gray-200 ${isSaved ? 'bg-gray-200/40' : 'bg-white/30'}`}>
           <button
             onClick={handleSave}
             className="px-6 py-3 bg-green-600 text-white rounded-md text-sm font-bold hover:bg-green-700 disabled:opacity-60"
