@@ -118,12 +118,11 @@ export default function ToastLink() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Toast Link</h2>
             <p className="text-gray-600 mt-2 max-w-3xl">
-              Pair each staff member with their Toast record once. After that, the Dashboard can pull
-              who&apos;s working straight from the published Toast schedule.
+              Pair each person with their Toast record once &mdash; after that, the schedule fills
+              itself in.
             </p>
             <p className="text-sm text-gray-500 mt-2 max-w-3xl">
-              Matches are <strong>suggestions</strong> &mdash; Toast stores legal names where this app
-              shows the name everyone actually uses, so confirm each one.
+              Toast uses legal names, so confirm each match.
             </p>
           </div>
           <button
@@ -136,8 +135,7 @@ export default function ToastLink() {
 
         {state.status === 'ready' && (
           <p className="mt-4 text-sm font-medium text-gray-700">
-            {employees.length} active employee{employees.length === 1 ? '' : 's'} in Toast &middot;{' '}
-            {linkedCount} of {staff.length} staff member{staff.length === 1 ? '' : 's'} linked
+            {employees.length} in Toast &middot; {linkedCount} of {staff.length} linked
           </p>
         )}
 
