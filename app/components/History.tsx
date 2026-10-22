@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Position, TimeSlot } from '@/lib/types';
 import { TIME_SLOTS } from '@/lib/constants';
+import { positionDot, positionPill } from '@/lib/positionStyle';
 
 interface HistoryEntry {
   date: string;
@@ -100,15 +101,24 @@ export default function History() {
                             return Array.from(positions).map(position => (
                               <tr key={position}>
                                 <td className="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
-                                  {position}
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <span className={`h-2 w-2 rounded-full ${positionDot(position)}`} aria-hidden="true" />
+                                    {position}
+                                  </span>
                                 </td>
                                 {TIME_SLOTS.map(slot => {
                                   const assignment = entry.schedule![slot].find(a => a.position === position);
                                   return (
                                     <td key={slot} className="px-4 py-2 whitespace-nowrap text-center">
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        {assignment?.staffName || '-'}
-                                      </span>
+                                      {assignment?.staffName ? (
+                                        <span
+                                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold text-white shadow-sm ${positionPill(position)}`}
+                                        >
+                                          {assignment.staffName}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-400">-</span>
+                                      )}
                                     </td>
                                   );
                                 })}
