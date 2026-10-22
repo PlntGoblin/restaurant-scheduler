@@ -5,6 +5,7 @@ import {
   needsConfirmation,
   reconcileClockIns,
   staffFromToastEmployee,
+  syncRosterNames,
 } from '../roster';
 import { toEmployeeDTO } from '../match';
 import type { ToastShiftDTO } from '../shifts';
@@ -315,5 +316,30 @@ describe('needsConfirmation', () => {
 
   it('does not fuss over an empty roster staying empty', () => {
     expect(needsConfirmation({ edited: false, nextCount: 0, currentCount: 0 })).toBe(false);
+  });
+});
+
+describe('syncRosterNames', () => {
+  const live = [member('s1', 'Bobby', ['g1']), member('s2', 'Jake', ['g2'])];
+
+  it('renames a snapshot row to match the live staff record', () => {
+    const { roster, changed } = syncRosterNames([row('s1', 'Red', '11-2pm')], live);
+    expect(changed).toBe(true);
+    expect(roster[0]).toEqual({ id: 's1', name: 'Bobby', duration: '11-2pm' });
+  });
+
+  it('keeps the snapshot name when the id no longer resolves', () => {
+    // A deleted staff record must not blank the roster row -- the shift is
+    // still real even if nobody can say whose record it was.
+    const { roster, changed } = syncRosterNames([row('gone', 'Red', '11-2pm')], live);
+    expect(changed).toBe(false);
+    expect(roster[0].name).toBe('Red');
+  });
+
+  it('reports changed: false when everything already matches', () => {
+    const input = [row('s2', 'Jake', '11-1pm')];
+    const { roster, changed } = syncRosterNames(input, live);
+    expect(changed).toBe(false);
+    expect(roster).toBe(input); // same array, no pointless rewrite
   });
 });

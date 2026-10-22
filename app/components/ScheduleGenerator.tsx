@@ -242,6 +242,10 @@ export default function ScheduleGenerator() {
 
       return {
         ...ds,
+        // The roster row's name is a snapshot from pull time; the staff
+        // record is the living one. Prefer it so a rename in Staff
+        // Management shows up on the generated grid immediately.
+        name: fullStaffData?.name ?? ds.name,
         preferences: fullStaffData?.preferences || [],
         availableSlots,
         seniority: fullStaffData?.seniority || 'Team Member',

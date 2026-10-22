@@ -300,3 +300,27 @@ export function isRosterProtected(
   if (!meta) return rosterCount > 0;
   return meta.edited && meta.date === date;
 }
+
+/**
+ * Re-resolve each roster row's display name from the live staff list.
+ *
+ * Roster rows are snapshots taken at pull time, so renaming a person in
+ * Staff Management ("Red" -> "Bobby") left every already-written roster row
+ * saying the old name -- while anything resolving live by id (the opener
+ * pill) showed the new one. Names follow the staff record; the id is the
+ * identity. Rows whose id no longer resolves keep their snapshot name.
+ */
+export function syncRosterNames(
+  roster: DailyStaff[],
+  staff: StaffMember[],
+): { roster: DailyStaff[]; changed: boolean } {
+  const byId = new Map(staff.map((s) => [s.id, s]));
+  let changed = false;
+  const next = roster.map((row) => {
+    const live = byId.get(row.id);
+    if (!live || live.name === row.name) return row;
+    changed = true;
+    return { ...row, name: live.name };
+  });
+  return { roster: changed ? next : roster, changed };
+}
