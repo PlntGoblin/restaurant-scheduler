@@ -37,7 +37,7 @@ export default function History() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="glass rounded-2xl p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Schedule History</h2>
         <p className="text-gray-600 mb-6">
           View the past 7 days of staff assignments. The algorithm uses this data to ensure variety in position assignments.
@@ -45,13 +45,13 @@ export default function History() {
       </div>
 
       {history.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
+        <div className="glass rounded-2xl p-12 text-center">
           <p className="text-gray-500">No schedule history yet. Create and save schedules to see them here.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {history.map((entry, index) => (
-            <div key={entry.date} className="bg-white rounded-lg shadow overflow-hidden">
+            <div key={entry.date} className="glass rounded-2xl overflow-hidden">
               <div className="p-6 border-b border-gray-200 bg-gray-50">
                 <h3 className="text-xl font-semibold text-gray-900">
                   {formatDate(entry.date)}
@@ -80,7 +80,7 @@ export default function History() {
                     <h4 className="text-sm font-bold text-gray-900 mb-3">Generated Schedule</h4>
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gray-50/60">
                           <tr>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
                             {TIME_SLOTS.map(slot => (
@@ -90,7 +90,7 @@ export default function History() {
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white/40 divide-y divide-gray-200">
                           {(() => {
                             // Get unique positions from schedule
                             const positions = new Set<Position>();

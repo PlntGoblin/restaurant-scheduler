@@ -157,68 +157,42 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-gradient-to-r from-black to-red-800 shadow-lg">
+    <div className="min-h-screen">
+      {/* Sticky dark glass: the blur only reads as glass once content
+          actually scrolls underneath it. Tabs are pills in Space Grotesk --
+          the display voice; body text stays Geist. */}
+      <nav className="sticky top-0 z-30 border-b border-white/10 bg-black/60 shadow-lg backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between">
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`px-6 py-4 text-base transition-colors ${
-                activeTab === 'dashboard'
-                  ? 'text-white border-b-2 border-red-400 font-bold'
-                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
-              }`}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab('staff')}
-              className={`px-6 py-4 text-base transition-colors ${
-                activeTab === 'staff'
-                  ? 'text-white border-b-2 border-red-400 font-bold'
-                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
-              }`}
-            >
-              Staff Management
-            </button>
-            <button
-              onClick={() => setActiveTab('toast')}
-              className={`px-6 py-4 text-base transition-colors ${
-                activeTab === 'toast'
-                  ? 'text-white border-b-2 border-red-400 font-bold'
-                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
-              }`}
-            >
-              Toast Link
-            </button>
-            <button
-              onClick={() => setActiveTab('generator')}
-              className={`px-6 py-4 text-base transition-colors ${
-                activeTab === 'generator'
-                  ? 'text-white border-b-2 border-red-400 font-bold'
-                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
-              }`}
-            >
-              Generator
-            </button>
-            <button
-              onClick={() => setActiveTab('history')}
-              className={`px-6 py-4 text-base transition-colors ${
-                activeTab === 'history'
-                  ? 'text-white border-b-2 border-red-400 font-bold'
-                  : 'text-white/60 hover:text-white border-b-2 border-transparent font-medium'
-              }`}
-            >
-              History
-            </button>
-          </div>
+          <div className="flex items-center justify-between py-3">
+            <div className="flex items-center gap-1.5 font-[family-name:var(--font-space-grotesk)]">
+              {(
+                [
+                  ['dashboard', 'Dashboard'],
+                  ['staff', 'Staff Management'],
+                  ['toast', 'Toast Link'],
+                  ['generator', 'Generator'],
+                  ['history', 'History'],
+                ] as const
+              ).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-full px-5 py-2 text-sm font-semibold tracking-wide transition-all ${
+                    activeTab === tab
+                      ? 'bg-red-600 text-white shadow-lg shadow-red-900/50'
+                      : 'text-white/60 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <button
               onClick={async () => {
                 await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
                 setIsLoggedIn(false);
               }}
-              className="mb-2 px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white hover:bg-white/20 rounded transition-colors"
+              className="rounded-full px-3 py-1.5 text-xs font-bold text-white/60 transition-colors hover:bg-white/10 hover:text-white"
             >
               Log out
             </button>

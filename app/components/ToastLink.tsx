@@ -113,7 +113,7 @@ export default function ToastLink() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="glass rounded-2xl p-6">
         <div className="flex justify-between items-start gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Toast Link</h2>
@@ -160,26 +160,26 @@ export default function ToastLink() {
       </div>
 
       {staff.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="glass rounded-2xl p-6">
           <p className="text-sm font-medium text-orange-600">
             No staff members yet. Add them in Staff Management, or add them straight from Toast below.
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="glass rounded-2xl overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-xl font-bold text-gray-900">Your staff</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50/60">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff member</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Toast record</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white/40 divide-y divide-gray-200">
                 {staff.map((s) => {
                   const guids = s.toastGuids ?? [];
                   const linked = guids.map((g) => byGuid.get(g)).filter((e): e is ToastEmployeeDTO => Boolean(e));
@@ -280,7 +280,7 @@ export default function ToastLink() {
       )}
 
       {unmatched.length > 0 && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="glass rounded-2xl overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-xl font-bold text-gray-900">
               In Toast, not in your roster ({unmatched.length})
