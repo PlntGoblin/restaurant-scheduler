@@ -259,6 +259,13 @@ export default function StaffManagement() {
               </tr>
             ) : (
               staff.map((member) => {
+                // All 3s is the untouched default, not information. Flagging
+                // it beats rendering three meaningless "(3)" chips -- that is
+                // how a crew-full of never-set preferences hid in plain sight
+                // while the rotation ran on ties.
+                const prefsNeverSet =
+                  member.preferences.length === 0 ||
+                  member.preferences.every((p) => p.preferenceLevel === 3);
                 const topPreferences = [...member.preferences]
                   .sort((a, b) => b.preferenceLevel - a.preferenceLevel)
                   .slice(0, 3);
@@ -276,16 +283,22 @@ export default function StaffManagement() {
                       {member.seniority || 'Team Member'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      <div className="flex flex-wrap gap-1">
-                        {topPreferences.map((pref) => (
-                          <span
-                            key={pref.position}
-                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800"
-                          >
-                            {pref.position} ({pref.preferenceLevel})
-                          </span>
-                        ))}
-                      </div>
+                      {prefsNeverSet ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                          Preferences not set
+                        </span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {topPreferences.map((pref) => (
+                            <span
+                              key={pref.position}
+                              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800"
+                            >
+                              {pref.position} ({pref.preferenceLevel})
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {(member.toastGuids ?? []).length > 0 ? (

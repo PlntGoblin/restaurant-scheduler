@@ -324,9 +324,15 @@ export default function ScheduleGenerator() {
           }
 
           const sameSlotYesterdayPenalty = workedSameSlotYesterday ? 500 : 0;
-          const varietyBonus = 2;
           const historyPenalty = historicalFrequency * 0.5;
-          const score = preference + varietyBonus - historyPenalty - hotPositionPenalty - sameSlotYesterdayPenalty;
+          // Random tie-break, deliberately smaller than every intentional gap:
+          // preference steps are 1.0 and history-penalty steps are 0.5, so a
+          // 0-0.4 jitter can never flip a real ranking -- it only decides
+          // EXACT ties, which otherwise always fall to whoever clocks in
+          // earliest and hands the same people the same stations every day.
+          // It is also what makes Shuffle actually shuffle.
+          const tieBreak = Math.random() * 0.4;
+          const score = preference + tieBreak - historyPenalty - hotPositionPenalty - sameSlotYesterdayPenalty;
 
           staffScores.push({ staffId: staff.id, staffName: staff.name, score });
         });

@@ -272,3 +272,31 @@ export function timeEntriesForDate(
 
   return out.sort((a, b) => a.inMinutes - b.inMinutes);
 }
+
+/**
+ * "07:00-14:00" -> "7am - 2pm".
+ *
+ * Nobody working a lunch rush thinks in 24-hour time, and "14:00" is a small
+ * speed bump on every single row. Minutes only show when they are not :00,
+ * so the common case stays short and the 10:45 starts stay honest.
+ *
+ * Anything that does not parse is passed through untouched -- a weird string
+ * on screen beats a crash or a silently wrong hour.
+ */
+export function formatHHMM(hhmm: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return hhmm;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return hhmm;
+  const suffix = h < 12 ? 'am' : 'pm';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return min === 0 ? `${h12}${suffix}` : `${h12}:${m[2]}${suffix}`;
+}
+
+/** "07:00-14:00" -> "7am - 2pm". Pass-through if it is not a range. */
+export function formatRawRange(raw: string): string {
+  const parts = raw.split('-');
+  if (parts.length !== 2) return raw;
+  return `${formatHHMM(parts[0])} - ${formatHHMM(parts[1])}`;
+}

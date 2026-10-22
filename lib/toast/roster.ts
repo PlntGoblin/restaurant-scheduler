@@ -81,8 +81,8 @@ export interface RosterDiff {
   /** Everyone on the clock before the rush, earliest first. */
   openerCandidates: { staffId: string; name: string; startHHMM: string }[];
   /**
-   * Pre-fill for the grill opener -- set ONLY when exactly one person came in
-   * early, so there is nothing to guess. See `buildRosterDiff`.
+   * Pre-fill for the grill opener: of everyone on the clock by 10am, the one
+   * who most prefers Grill; ties go to the latest start. See `buildRosterDiff`.
    */
   suggestedGrillOpenerId: string | null;
 }
@@ -139,17 +139,20 @@ export function buildRosterDiff(
 
   const removed = currentRoster.filter((r) => !toastIds.has(r.id));
 
-  // Who opened the grill is NOT inferable from start times, and guessing it
-  // wrong matters: the opener is exempted from hot positions during 11-12.
+  // Who opened the grill is not in the Toast feed: jobReference is the
+  // person's SENIORITY ("Team Member", "Captain 1"), not their station, so
+  // nothing in the API distinguishes the 7am prep crew from whoever cooked
+  // the meat. What this app DOES know is each person's Grill preference from
+  // Staff Management -- the same number the rotation already trusts.
   //
-  // A real day has three or four people clocked in before the rush -- the 7am
-  // opening-prep crew, plus whoever cooked meat at 9. Toast's jobReference is
-  // the person's SENIORITY ("Team Member", "Captain 1"), not their station, so
-  // nothing in the API distinguishes the prep cook from the grill opener.
-  // Picking the earliest start would reliably name the prep crew.
+  // So the pick is: of everyone on the clock by 10am, whoever most prefers
+  // Grill. Ties go to the LATEST start -- meat is cooked in the 9-10am
+  // window, and the earliest starts are reliably the prep crew. On a roster
+  // where preferences were never filled in, everything is a tie and the rule
+  // degrades to exactly "the 9am person".
   //
-  // So: pre-fill only when there is exactly one candidate and therefore no
-  // guess to make. Otherwise hand the list to the person who knows.
+  // It is a pre-fill, not a verdict: the Dashboard never overwrites a
+  // selection a person already made for today.
   const openerCandidates = [...shiftByStaffId.entries()]
     .filter(([, shift]) => shift.openerCandidate)
     .map(([staffId, shift]) => ({
@@ -159,8 +162,19 @@ export function buildRosterDiff(
     }))
     .sort((a, b) => toMinutes(a.startHHMM) - toMinutes(b.startHHMM));
 
+  const staffById = new Map(staff.map((s) => [s.id, s]));
+  const grillPreference = (staffId: string): number => {
+    const prefs = staffById.get(staffId)?.preferences ?? [];
+    return prefs.find((p) => p.position === 'Grill 1')?.preferenceLevel ?? 3;
+  };
   const suggestedGrillOpenerId =
-    openerCandidates.length === 1 ? openerCandidates[0].staffId : null;
+    openerCandidates.length > 0
+      ? [...openerCandidates].sort(
+          (a, b) =>
+            grillPreference(b.staffId) - grillPreference(a.staffId) ||
+            toMinutes(b.startHHMM) - toMinutes(a.startHHMM),
+        )[0].staffId
+      : null;
 
   return {
     added,
