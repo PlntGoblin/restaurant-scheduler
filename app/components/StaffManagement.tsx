@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { StaffMember, Position, PositionPreference } from '@/lib/types';
 import { ALL_POSITIONS } from '@/lib/constants';
+import TrashIcon from './TrashIcon';
 
 // Positions for preferences (exclude duplicates)
 const PREFERENCE_POSITIONS: Position[] = [
@@ -316,9 +317,11 @@ export default function StaffManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteStaff(member.id); }}
-                        className="text-red-600 hover:text-red-900 font-medium"
+                        className="rounded p-1.5 text-red-600 hover:bg-red-50 hover:text-red-800"
+                        aria-label={`Delete ${member.name}`}
+                        title={`Delete ${member.name}`}
                       >
-                        Delete
+                        <TrashIcon />
                       </button>
                     </td>
                   </tr>

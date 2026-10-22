@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Position, TimeSlot } from '@/lib/types';
 import { TIME_SLOTS } from '@/lib/constants';
-import { positionDot, positionPill } from '@/lib/positionStyle';
+import { POSITION_PILL } from '@/lib/positionStyle';
 
 interface HistoryEntry {
   date: string;
@@ -101,10 +101,7 @@ export default function History() {
                             return Array.from(positions).map(position => (
                               <tr key={position}>
                                 <td className="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
-                                  <span className="inline-flex items-center gap-1.5">
-                                    <span className={`h-2 w-2 rounded-full ${positionDot(position)}`} aria-hidden="true" />
-                                    {position}
-                                  </span>
+                                  {position}
                                 </td>
                                 {TIME_SLOTS.map(slot => {
                                   const assignment = entry.schedule![slot].find(a => a.position === position);
@@ -112,7 +109,7 @@ export default function History() {
                                     <td key={slot} className="px-4 py-2 whitespace-nowrap text-center">
                                       {assignment?.staffName ? (
                                         <span
-                                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold text-white shadow-sm ${positionPill(position)}`}
+                                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm ${POSITION_PILL}`}
                                         >
                                           {assignment.staffName}
                                         </span>
