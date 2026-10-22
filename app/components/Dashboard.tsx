@@ -11,6 +11,7 @@ import {
   loadStaff,
   needsConfirmation,
   saveStaff,
+  syncRosterNames,
   type RosterDiff,
 } from '@/lib/toast/roster';
 import { applyEmployeeLinks } from '@/lib/toast/links';
@@ -94,7 +95,8 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
   // One hydration pass. Staff roster and daily roster have to land together
   // or the auto-pull would run before it can resolve a single Toast GUID.
   useEffect(() => {
-    setStaffRoster(loadStaff());
+    const liveStaff = loadStaff();
+    setStaffRoster(liveStaff);
 
     const savedDailyStaff = localStorage.getItem('dailyStaff');
     const savedGrillOpener = localStorage.getItem('grillOpener');
@@ -110,6 +112,13 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
         console.error('Error loading daily staff:', error);
       }
     }
+    // Roster rows are snapshots from pull time; the person may have been
+    // renamed in Staff Management since ("Red" -> "Bobby"). Names follow the
+    // staff record, so re-resolve them by id and persist the correction --
+    // the Generator reads this same localStorage key directly.
+    const synced = syncRosterNames(roster, liveStaff);
+    roster = synced.roster;
+    if (synced.changed) localStorage.setItem('dailyStaff', JSON.stringify(roster));
     setWorkingToday(roster);
 
     const today = todayLocal();
