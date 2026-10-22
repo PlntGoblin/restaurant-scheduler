@@ -7,6 +7,8 @@ import {
   shiftToLocal,
   timeEntriesForDate,
   type ToastShift,
+  formatHHMM,
+  formatRawRange,
 } from '../shifts';
 
 /** A shift expressed in Phoenix-local hours, as the UTC instants Toast sends. */
@@ -179,5 +181,29 @@ describe('timeEntriesForDate', () => {
     expect(entries[0].stillClockedIn).toBe(true);
     expect(entries[1].stillClockedIn).toBe(false);
     expect(entries[1].outHHMM).toBe('14:00');
+  });
+});
+
+describe('formatHHMM / formatRawRange', () => {
+  it('drops :00 minutes and uses am/pm', () => {
+    expect(formatRawRange('07:00-14:00')).toBe('7am - 2pm');
+    expect(formatRawRange('11:00-21:00')).toBe('11am - 9pm');
+  });
+
+  it('keeps minutes when they are not on the hour', () => {
+    expect(formatRawRange('10:45-20:30')).toBe('10:45am - 8:30pm');
+  });
+
+  it('handles both noon and midnight, which %12 gets wrong', () => {
+    expect(formatHHMM('12:00')).toBe('12pm');
+    expect(formatHHMM('00:00')).toBe('12am');
+    expect(formatHHMM('00:15')).toBe('12:15am');
+  });
+
+  it('passes through anything it cannot parse rather than guessing', () => {
+    expect(formatHHMM('nope')).toBe('nope');
+    expect(formatHHMM('25:00')).toBe('25:00');
+    expect(formatRawRange('07:00')).toBe('07:00');
+    expect(formatRawRange('')).toBe('');
   });
 });

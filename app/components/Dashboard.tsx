@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { DailyStaff, StaffMember } from '@/lib/types';
 import { todayLocal } from '@/lib/toast/time';
-import type { ToastShiftDTO } from '@/lib/toast/shifts';
+import { formatHHMM, formatRawRange, type ToastShiftDTO } from '@/lib/toast/shifts';
 import {
   buildRosterDiff,
   isRosterProtected,
@@ -110,10 +110,13 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
       }
     }
     setWorkingToday(roster);
-    if (savedGrillOpener) setGrillOpener(savedGrillOpener);
 
     const today = todayLocal();
     const date = savedDate && savedDate >= today ? savedDate : today;
+    // The stored opener was chosen for the stored date. If the app rolled
+    // forward to a new day, yesterday's opener is not today's -- leave it
+    // empty and let the Toast pull suggest one from today's clock-ins.
+    if (savedGrillOpener && date === savedDate) setGrillOpener(savedGrillOpener);
     setSelectedDate(date);
     if (date !== savedDate) localStorage.setItem('currentDate', date);
 
@@ -157,26 +160,32 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     setShiftByStaffId(new Map());
     setUnlinkedShifts([]);
     setOpenerCandidates([]);
+    setGrillOpener('');
     setToastStatus({ kind: 'idle' });
   }, [selectedDate]);
 
-  const applyDiff = useCallback((diff: RosterDiff, silent: boolean) => {
+  const applyDiff = useCallback((diff: RosterDiff) => {
     setWorkingToday(diff.next);
     saveRoster(diff.next, false);
     setShiftByStaffId(diff.shiftByStaffId);
     setOpenerCandidates(diff.openerCandidates);
-    // Only when there is exactly one person it could be. With several, the
-    // Grill Opener card asks instead -- Toast records a person's role, not
-    // their station, so it genuinely cannot tell prep from the grill opener.
-    if (diff.suggestedGrillOpenerId) setGrillOpener(diff.suggestedGrillOpenerId);
+    // Auto-fill the opener (highest Grill preference among the early
+    // clock-ins; rule in buildRosterDiff) -- but only into an EMPTY slot or
+    // one pointing at somebody no longer on today's roster. A person's
+    // explicit pick for today always survives a refresh; the functional
+    // update reads the current value so this callback can stay keyed on the
+    // date alone.
+    if (diff.suggestedGrillOpenerId) {
+      const onToday = new Set(diff.next.map((r) => r.id));
+      setGrillOpener((prev) => (prev && onToday.has(prev) ? prev : diff.suggestedGrillOpenerId!));
+    }
     setPendingDiff(null);
     setIsSaved(false);
-    setToastStatus({
-      kind: 'info',
-      message: silent
-        ? `${diff.next.length} on the lunch rush, from Toast.`
-        : `Updated from Toast — ${diff.next.length} on the lunch rush.`,
-    });
+    // No status line here on purpose. "6 on the lunch rush" said nothing the
+    // heading's own "· 6 staff" did not already say, and a strip that speaks
+    // on every success is a strip nobody reads when it finally has bad news.
+    // The empty-schedule and error messages below still speak.
+    setToastStatus({ kind: 'idle' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
@@ -276,10 +285,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
         if (unchanged) {
           setShiftByStaffId(diff.shiftByStaffId);
           setOpenerCandidates(diff.openerCandidates);
-          setToastStatus({
-            kind: 'info',
-            message: `Up to date with Toast — ${diff.next.length} on the lunch rush.`,
-          });
+          setToastStatus({ kind: 'idle' });
           return;
         }
 
@@ -297,7 +303,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
           setPendingDiff(diff);
           setToastStatus({ kind: 'idle' });
         } else {
-          applyDiff(diff, true);
+          applyDiff(diff);
         }
       } catch (e) {
         setToastStatus({
@@ -383,8 +389,18 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     let history: { date: string; staff: DailyStaff[]; grillOpener: string }[] =
       existingHistory ? JSON.parse(existingHistory) : [];
 
+    // Re-saving a day must not throw away the rotation already generated for
+    // it: that grid is a week of fairness memory, and the generator rewrites
+    // it in a moment anyway.
+    const previous = history.find(h => h.date === selectedDate) as
+      { schedule?: unknown } | undefined;
     history = history.filter(h => h.date !== selectedDate);
-    history.push({ date: selectedDate, staff: workingToday, grillOpener });
+    history.push({
+      date: selectedDate,
+      staff: workingToday,
+      grillOpener,
+      ...(previous?.schedule !== undefined ? { schedule: previous.schedule } : {}),
+    });
     history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     history = history.slice(0, 7);
     localStorage.setItem(historyKey, JSON.stringify(history));
@@ -414,12 +430,11 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
         <div className="p-6 border-b border-gray-200 flex flex-wrap justify-between items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              Working Today
+              {prettyDate}
               {workingToday.length > 0 && (
                 <span className="text-gray-500 font-medium"> · {workingToday.length} staff</span>
               )}
             </h2>
-            <p className="text-gray-600 text-sm mt-1">{prettyDate}</p>
           </div>
           <div className="flex items-center gap-3">
             <input
@@ -443,6 +458,69 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
 
         {/* Status strip ------------------------------------------------- */}
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 space-y-3">
+          {/* The two settings that change what Generate produces. They used to
+              live in cards below the fold, which meant the slow-day toggle got
+              missed on exactly the slow days it exists for. Both explain
+              themselves on hover -- see <Hint>. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Hint text="Runs the rotation with a single griller instead of two during the rush.">
+              <label
+                className={`flex cursor-pointer items-center gap-2 rounded-full border-2 px-3 py-1.5
+                            text-sm font-bold transition-colors ${
+                              oneGrillerOnly
+                                ? 'border-red-400 bg-red-50 text-red-800'
+                                : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                            }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={oneGrillerOnly}
+                  onChange={(e) => setOneGrillerOnly(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-400 bg-white accent-red-600 focus:ring-red-500"
+                />
+                Slow Day? One Griller Only
+              </label>
+            </Hint>
+
+            <Hint text="Cooked meat before opening (9am–10am). Kept off Grill and Fries from 11am–12pm.">
+              <span
+                className={`flex items-center gap-2 rounded-full border-2 bg-white py-1 pl-3 pr-1.5
+                            transition-colors ${
+                              grillOpener ? 'border-red-400' : 'border-gray-300'
+                            }`}
+              >
+                <label
+                  htmlFor="grill-opener"
+                  className="cursor-pointer whitespace-nowrap text-sm font-bold text-gray-700"
+                >
+                  Who Opened Grill?
+                </label>
+                <select
+                  id="grill-opener"
+                  value={grillOpener}
+                  onChange={(e) => setGrillOpener(e.target.value)}
+                  className="rounded-full bg-transparent px-2 py-1 text-sm font-medium text-gray-900
+                             focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="">None selected</option>
+                  {/* Early clock-ins first, with their start times: the opener
+                      is almost always one of them, so the likely answers lead
+                      and the rest of the roster follows as a fallback. */}
+                  {openerCandidates.map((c) => (
+                    <option key={c.staffId} value={c.staffId}>
+                      {c.name} · in at {formatHHMM(c.startHHMM)}
+                    </option>
+                  ))}
+                  {allStaff
+                    .filter((staff) => !openerCandidates.some((c) => c.staffId === staff.id))
+                    .map((staff) => (
+                      <option key={staff.id} value={staff.id}>{staff.name}</option>
+                    ))}
+                </select>
+              </span>
+            </Hint>
+          </div>
+
           {toastStatus.kind === 'info' && (
             <p className="text-sm font-medium text-gray-700">{toastStatus.message}</p>
           )}
@@ -534,7 +612,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
               </div>
               <div className="mt-4 flex gap-3">
                 <button
-                  onClick={() => applyDiff(pendingDiff, false)}
+                  onClick={() => applyDiff(pendingDiff)}
                   className="px-5 py-2 bg-green-600 text-white rounded-md text-sm font-bold hover:bg-green-700"
                 >
                   Use Toast&apos;s version
@@ -572,7 +650,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
               <tbody className={`divide-y divide-gray-200 ${isSaved ? 'bg-gray-300' : 'bg-white'}`}>
                 {workingToday.map((staff) => (
                   <tr key={staff.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-base font-semibold text-gray-900">
                       {staff.name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -592,10 +670,29 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => handleRemoveStaff(staff.id)}
-                        className="text-red-600 hover:text-red-900 font-medium"
+                        className="rounded p-1.5 text-red-600 hover:bg-red-50 hover:text-red-800 disabled:opacity-40"
                         disabled={isSaved}
+                        aria-label={`Remove ${staff.name}`}
+                        title={`Remove ${staff.name}`}
                       >
-                        Remove
+                        {/* Trash can, inline: one glyph is not worth an icon library. */}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-5 w-5"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
                       </button>
                     </td>
                   </tr>
@@ -659,7 +756,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
               onClick={() => setShowManualAdd(true)}
               className="text-sm font-bold text-red-600 hover:text-red-800"
             >
-              + Add someone not on Toast&apos;s schedule
+              + Add employee
             </button>
           )}
         </div>
@@ -675,50 +772,38 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
         </div>
       </div>
 
-      {/* Grill opener + slow-day toggle --------------------------------- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Who Opened Grill?</h2>
-          <p className="text-gray-600 text-sm mb-4">
-            Cooked meat before opening (9am&ndash;10am). Kept off Grill and Fries from 11am&ndash;12pm.
-          </p>
-          <select
-            value={grillOpener}
-            onChange={(e) => setGrillOpener(e.target.value)}
-            className="w-full px-3 py-2 text-base font-medium text-gray-900 bg-white border-2 border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-          >
-            <option value="">None selected</option>
-            {allStaff.map((staff) => (
-              <option key={staff.id} value={staff.id}>{staff.name}</option>
-            ))}
-          </select>
-          {openerCandidates.length > 1 && !grillOpener && (
-            <p className="mt-3 text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded p-2">
-              <strong>{openerCandidates.length} people were on before the rush</strong> (
-              {openerCandidates.map((c) => `${c.name} ${c.startHHMM}`).join(', ')}). Toast records
-              each person&apos;s role, not their station, so it can&apos;t tell the opening-prep crew
-              from whoever cooked the meat.
-            </p>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Slow Day?</h2>
-          <p className="text-gray-600 text-sm mb-4">
-            Runs the rotation with a single griller instead of two during the rush.
-          </p>
-          <label className="flex items-center space-x-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={oneGrillerOnly}
-              onChange={(e) => setOneGrillerOnly(e.target.checked)}
-              className="w-5 h-5 text-red-600 bg-white border-gray-400 rounded focus:ring-red-500"
-            />
-            <span className="text-base font-medium text-gray-900">One Griller Only</span>
-          </label>
-        </div>
-      </div>
     </div>
+  );
+}
+
+/**
+ * A control that explains itself the instant you point at it.
+ *
+ * Deliberately NOT the native `title` attribute: browsers sit on that for
+ * roughly a second before showing anything, and a hint you have to wait for
+ * is a hint nobody waits for. This paints in 75ms.
+ *
+ * `focus-within` matters as much as `hover` -- these wrap a checkbox and a
+ * select, both of which people reach by Tab, and a mouse-only hint leaves
+ * keyboard users with a bare label. `aria-describedby` ties the text to the
+ * control so it is announced rather than merely drawn.
+ */
+function Hint({ text, children }: { text: string; children: React.ReactNode }) {
+  const id = useId();
+  return (
+    <span className="group relative inline-flex">
+      <span aria-describedby={id} className="inline-flex">{children}</span>
+      <span
+        id={id}
+        role="tooltip"
+        className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2
+                   rounded-md bg-gray-900 px-3 py-2 text-xs font-medium leading-snug text-white
+                   shadow-lg opacity-0 transition-opacity duration-75
+                   group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {text}
+      </span>
+    </span>
   );
 }
 
@@ -731,14 +816,14 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
 function ToastChip({ shift }: { shift?: ToastShiftDTO }) {
   if (!shift) return null;
   if (shift.confident) {
-    return <span className="ml-2 text-xs text-gray-500">Toast: {shift.raw}</span>;
+    return <span className="ml-2 text-sm text-gray-500">{formatRawRange(shift.raw)}</span>;
   }
   return (
     <span
       className="ml-2 text-xs font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded px-1.5 py-0.5"
-      title={`Toast has this shift as ${shift.raw}, which does not fit any of the four duration options. Closest match shown.`}
+      title={`Toast has this shift as ${formatRawRange(shift.raw)}, which does not fit any of the four duration options. Closest match shown.`}
     >
-      ⚠ Toast: {shift.raw}
+      ⚠ {formatRawRange(shift.raw)}
     </span>
   );
 }

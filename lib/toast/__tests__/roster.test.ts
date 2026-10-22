@@ -116,11 +116,14 @@ describe('buildRosterDiff', () => {
     expect(diff.openerCandidates.map((c) => c.staffId)).toEqual(['s1']);
   });
 
-  it('refuses to guess the opener when several people came in early', () => {
-    // A real Forefathers morning: a 7am opening-prep crew plus whoever cooked
-    // meat at 9. Toast's jobReference is seniority, not station, so nothing
-    // in the data says which one is the grill opener -- and picking the
-    // earliest would reliably name the prep crew instead.
+  it('picks the early clock-in who most prefers Grill', () => {
+    // Toni rates Grill 5 in Staff Management; Jake was in two hours earlier
+    // but is neutral on it. The number the rotation already trusts decides.
+    const withPrefs = staff.map((m) =>
+      m.id === 's1'
+        ? { ...m, preferences: [{ position: 'Grill 1' as const, preferenceLevel: 5 as const }] }
+        : m,
+    );
     const diff = buildRosterDiff(
       [
         toastShift('g1', '11-2pm', '09:00-14:00', { openerCandidate: true }),
@@ -128,14 +131,48 @@ describe('buildRosterDiff', () => {
         toastShift('g3', '11-2pm', '11:00-14:00'),
       ],
       [],
-      staff,
+      withPrefs,
     );
-    expect(diff.suggestedGrillOpenerId).toBeNull();
-    // ...but it hands over the candidates, earliest first, for a human to pick.
+    expect(diff.suggestedGrillOpenerId).toBe('s1');
+    // Candidates still listed earliest-first for the pill's dropdown.
     expect(diff.openerCandidates).toEqual([
       { staffId: 's2', name: 'Jake', startHHMM: '07:00' },
       { staffId: 's1', name: 'Toni', startHHMM: '09:00' },
     ]);
+  });
+
+  it('breaks preference ties toward the latest early start -- the 9-10am meat window', () => {
+    // A roster where nobody has filled preferences in yet (all default):
+    // everything ties, and the rule must degrade to "the 9am person", never
+    // "the 7am person", because the earliest starts are the prep crew.
+    const diff = buildRosterDiff(
+      [
+        toastShift('g2', '11-2pm', '07:00-14:00', { openerCandidate: true }),
+        toastShift('g1', '11-2pm', '09:00-14:00', { openerCandidate: true }),
+      ],
+      [],
+      staff,
+    );
+    expect(diff.suggestedGrillOpenerId).toBe('s1');
+  });
+
+  it('a HIGHER preference beats a later start, a missing one counts as neutral', () => {
+    // Jake (7am) rates Grill 4; Toni (9am) has no Grill entry at all, which
+    // must read as the neutral 3 -- not as zero, and not as a crash.
+    const withPrefs = staff.map((m) =>
+      m.id === 's2'
+        ? { ...m, preferences: [{ position: 'Grill 1' as const, preferenceLevel: 4 as const }] }
+        : m,
+    );
+    const diff = buildRosterDiff(
+      [
+        toastShift('g1', '11-2pm', '09:00-14:00', { openerCandidate: true }),
+        toastShift('g2', '11-2pm', '07:00-14:00', { openerCandidate: true }),
+      ],
+      [],
+      withPrefs,
+    );
+    expect(diff.suggestedGrillOpenerId).toBe('s2');
   });
 
   it('suggests no opener and offers nobody when the whole crew starts at 11', () => {
