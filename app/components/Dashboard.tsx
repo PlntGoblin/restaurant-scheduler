@@ -65,6 +65,13 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [showManualAdd, setShowManualAdd] = useState<boolean>(false);
   const hasMounted = useRef(false);
+  /**
+   * The date the opener / Slow Day / pull state on screen was built for.
+   * Hydration moves `selectedDate` from today to the stored date, and the
+   * date-change effect must not read that as the manager picking a new day
+   * -- it wiped the saved opener on every reload of a future date.
+   */
+  const appliedDate = useRef<string | null>(null);
 
   // --- Toast ---------------------------------------------------------------
   const [hydrated, setHydrated] = useState(false);
@@ -127,6 +134,7 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     // forward to a new day, yesterday's opener is not today's -- leave it
     // empty and let the Toast pull suggest one from today's clock-ins.
     if (savedGrillOpener && date === savedDate) setGrillOpener(savedGrillOpener);
+    appliedDate.current = date;
     setSelectedDate(date);
     if (date !== savedDate) localStorage.setItem('currentDate', date);
 
@@ -166,6 +174,10 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
 
   useEffect(() => {
     if (!hasMounted.current) return;
+    // Hydration lands here too (today -> the stored date). Only a change
+    // AWAY from the date this state was built for is the manager's doing.
+    if (appliedDate.current === selectedDate) return;
+    appliedDate.current = selectedDate;
     localStorage.setItem('currentDate', selectedDate);
     setIsSaved(false);
     // An edit protects the DAY it was made on. Switching to another date means
