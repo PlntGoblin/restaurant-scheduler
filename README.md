@@ -46,18 +46,26 @@ Set up your staff roster, pick who's working today, and the scheduler generates 
 - Print-ready schedule output
 
 ### Scheduling Algorithm
-| Rule | Description |
-|------|-------------|
-| **Preference scoring** | Staff rated 1–5 per position; higher preference = higher assignment priority |
-| **No same-position repeats** | Hard block — nobody works the same position twice in one day |
-| **Hot position limit** | Grill and Fries capped at 1 assignment per person per shift |
-| **Hot position diversity** | Penalty for getting both Grill *and* Fries in the same shift |
-| **Yesterday penalty** | Avoids assigning the same person to the same position + time slot as the day before |
-| **Historical variety** | Tracks past 7 days to spread assignments evenly over time |
-| **Seniority fallback** | When multiple staff tie, seniority breaks it (GM > AGM > Captain > Team Member) |
-| **Grill opener protection** | Whoever opened the grill pre-service skips hot positions during 11am–12pm |
-| **Essential positions first** | P.O.S., Grill 1, Expo 1, Fries, Expo 2 always get filled before Lobby/Dish |
-| **6-person busy mode** | During 11–12 and 12–1 with 6 staff, Grill 2 becomes essential (2 grillers for rush) |
+The rotation is a pure function in `lib/rotation.ts`, pinned by `lib/__tests__/rotation.test.ts`.
+Hot stations (Grill, Fries) are placed first across the **whole day**, then everything else
+is filled by preference. Rules, in priority order:
+
+| Rule | Type | Description |
+|------|------|-------------|
+| **One station, two slots** | Hard | Grill 1 and Grill 2 are one station ("Grill"); so are Lobby/Dish 1 and 2. Every rule reads the station |
+| **No back-to-back hot** | Hard | Nobody works a hot station in two consecutive hours |
+| **No same station twice** | Hard | Nobody works the same station twice in one day — so never both Grill 1 and Grill 2 |
+| **Grill opener protection** | Hard | Whoever opened the grill pre-service skips hot stations during 11am–12pm |
+| **Fewest hot shifts first** | Ordering | Hot stations go to whoever has been hot least — today first, then over the last 7 days. Preference only breaks ties |
+| **Preference** | Soft | Everything else is filled by the 1–5 preference, then by variety (not the same station + hour as yesterday, fewest recent shifts there) |
+
+A 6-person day has 8 hot cells (3 + 3 + 2), so **somebody is always hot twice** — the rules
+decide who — whoever has been hot least this week — and keep the two hours apart. When shift
+times make the no-back-to-back rule impossible (e.g. a 6-crew with one 1pm-only person), it is
+relaxed for that day and the schedule says so in amber.
+
+Staffing per headcount is a table in `lib/rotation.ts` (`positionsFor`). With 7 staff the second
+griller stands down for the 1pm slow hour and the hands go to Lobby/Dish 2.
 
 ### History
 - View the past 7 days of generated schedules

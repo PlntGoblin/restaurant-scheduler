@@ -1,36 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Position, TimeSlot, StaffMember, PositionPreference, DailyStaff } from '@/lib/types';
+import { Position, StaffMember, DailyStaff } from '@/lib/types';
 import { ALL_POSITIONS, TIME_SLOTS } from '@/lib/constants';
 import { POSITION_PILL } from '@/lib/positionStyle';
 import { todayLocal } from '@/lib/toast/time';
-
-interface ScheduleAssignment {
-  position: Position;
-  staffName: string;
-  staffId: string;
-}
-
-interface StaffWithPreferences extends DailyStaff {
-  preferences: PositionPreference[];
-  availableSlots: TimeSlot[];
-  seniority: 'GM' | 'AGM' | 'Captain' | 'Team Member';
-}
-
-const getHotPositionType = (pos: Position): string => {
-  if (pos === 'Grill 1' || pos === 'Grill 2') return 'Grill';
-  if (pos === 'Fries') return 'Fries';
-  return '';
-};
+import { generateRotation, slotsForDuration, MIN_STAFF, UNFILLED, type HistoryDay, type Schedule } from '@/lib/rotation';
 
 export default function ScheduleGenerator() {
-  const [schedule, setSchedule] = useState<Record<TimeSlot, ScheduleAssignment[]> | null>(null);
+  const [schedule, setSchedule] = useState<Schedule | null>(null);
+  // The no-consecutive-hot rule had to bend to fill today's grid.
+  const [relaxed, setRelaxed] = useState<boolean>(false);
   const [dailyStaff, setDailyStaff] = useState<DailyStaff[]>([]);
   const [allStaff, setAllStaff] = useState<StaffMember[]>([]);
   const [grillOpener, setGrillOpener] = useState<string>('');
   const [activePositions, setActivePositions] = useState<Position[]>(ALL_POSITIONS);
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<HistoryDay[]>([]);
   const [oneGrillerOnly, setOneGrillerOnly] = useState<boolean>(false);
   const [pendingGenerate, setPendingGenerate] = useState<boolean>(false);
 
@@ -123,348 +108,40 @@ export default function ScheduleGenerator() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingGenerate, dailyStaff]);
 
-  // Get position frequency for a staff member from history
-  const getPositionFrequency = (staffId: string, position: Position): number => {
-    let count = 0;
-    history.forEach(entry => {
-      if (entry.schedule) {
-        Object.values(entry.schedule).forEach((slotAssignments: any) => {
-          slotAssignments.forEach((assignment: any) => {
-            if (assignment.staffId === staffId && assignment.position === position) {
-              count++;
-            }
-          });
-        });
-      }
-    });
-    return count;
-  };
-
-  const getPreferenceForPosition = (preferences: PositionPreference[], position: Position): number => {
-    // Map Grill 2 to Grill 1 preferences, Lobby/Dish 2 to Lobby/Dish 1
-    let lookupPosition = position;
-    if (position === 'Grill 2') lookupPosition = 'Grill 1';
-    if (position === 'Lobby/Dish 2') lookupPosition = 'Lobby/Dish 1';
-
-    const pref = preferences.find(p => p.position === lookupPosition);
-    return pref?.preferenceLevel || 3; // Default to neutral if not found
-  };
-
   const generateSchedule = () => {
     if (dailyStaff.length === 0) {
       alert('No staff selected for today. Please go to the Dashboard and select who is working.');
       return;
     }
 
-    if (dailyStaff.length < 5) {
-      alert(`Warning: You have ${dailyStaff.length} staff members. You need at least 5 staff to create a schedule.`);
+    if (dailyStaff.length < MIN_STAFF) {
+      alert(`Warning: You have ${dailyStaff.length} staff members. You need at least ${MIN_STAFF} staff to create a schedule.`);
       return;
     }
 
-    // Determine which positions to use based on staff count and time slot
-    // For 6 people: 11-12 & 12-1 need 2 grillers (busy), 1-2 needs lobby/dish (slow)
-    const getPositionsForSlotAndCount = (slot: TimeSlot, count: number): Position[] => {
-      if (oneGrillerOnly) {
-        // One griller only mode (e.g., slow Sundays)
-        if (count === 5) {
-          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
-        } else if (count === 6) {
-          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1'];
-        } else if (count === 7) {
-          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1', 'Lobby/Dish 2'];
-        } else {
-          // 8+ people: Skip Grill 2
-          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1', 'Lobby/Dish 2'];
-        }
-      } else {
-        // Normal mode
-        if (count === 5) {
-          // 5 people: Essential positions only
-          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
-        } else if (count === 6) {
-          // 6 people: Different positions for busy vs slow periods
-          if (slot === '1pm-2pm') {
-            // Slow period: 1 griller + Lobby/Dish
-            return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1'];
-          } else {
-            // Busy periods: 2 grillers, no Lobby/Dish
-            return ['P.O.S.', 'Grill 1', 'Grill 2', 'Expo 1', 'Expo 2', 'Fries'];
-          }
-        } else if (count === 7) {
-          // 7 people: Essential + Lobby/Dish 1 + Grill 2 (except Grill 2 removed from 1-2pm later)
-          return ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2', 'Lobby/Dish 1', 'Grill 2'];
-        } else if (count === 8) {
-          // 8 people: All positions
-          return [...ALL_POSITIONS];
-        } else {
-          // 9+ people: All positions
-          return [...ALL_POSITIONS];
-        }
-      }
-    };
-
-    // We'll use this function per time slot instead of a single positionsToUse array
-
-    // Define hot positions
-    const HOT_POSITIONS: Position[] = ['Grill 1', 'Grill 2', 'Fries'];
-
-    // Helper to get seniority rank (lower number = more senior)
-    const getSeniorityRank = (seniority: string): number => {
-      switch (seniority) {
-        case 'GM': return 1;
-        case 'AGM': return 2;
-        case 'Captain': return 3;
-        case 'Team Member': return 4;
-        default: return 4;
-      }
-    };
-
-    // Combine daily staff with their preferences
-    const staffWithPreferences: StaffWithPreferences[] = dailyStaff.map(ds => {
-      const fullStaffData = allStaff.find(s => s.id === ds.id);
-
-      // Map duration to available time slots
-      let availableSlots: TimeSlot[] = [];
-      switch (ds.duration) {
-        case '11-2pm':
-          availableSlots = ['11am-12pm', '12pm-1pm', '1pm-2pm'];
-          break;
-        case '11-1pm':
-          availableSlots = ['11am-12pm', '12pm-1pm'];
-          break;
-        case '12-2pm':
-          availableSlots = ['12pm-1pm', '1pm-2pm'];
-          break;
-        case '1-2pm':
-          availableSlots = ['1pm-2pm'];
-          break;
-      }
-
-      return {
-        ...ds,
-        // The roster row's name is a snapshot from pull time; the staff
-        // record is the living one. Prefer it so a rename in Staff
-        // Management shows up on the generated grid immediately.
-        name: fullStaffData?.name ?? ds.name,
-        preferences: fullStaffData?.preferences || [],
-        availableSlots,
-        seniority: fullStaffData?.seniority || 'Team Member',
-      };
+    const result = generateRotation({
+      staff: dailyStaff.map(ds => {
+        const record = allStaff.find(s => s.id === ds.id);
+        return {
+          id: ds.id,
+          // The roster row's name is a snapshot from pull time; the staff
+          // record is the living one. Prefer it so a rename in Staff
+          // Management shows up on the generated grid immediately.
+          name: record?.name ?? ds.name,
+          availableSlots: slotsForDuration(ds.duration),
+          preferences: record?.preferences ?? [],
+        };
+      }),
+      grillOpener,
+      oneGrillerOnly,
+      history,
     });
-
-    // Generate schedule using rotation algorithm
-    const newSchedule: Record<TimeSlot, ScheduleAssignment[]> = {
-      '11am-12pm': [],
-      '12pm-1pm': [],
-      '1pm-2pm': [],
-    };
-
-    // Track position assignments for each staff member to ensure rotation
-    const staffPositionHistory: Record<string, Set<Position>> = {};
-    const staffHotPositionCount: Record<string, number> = {};
-    const staffHotPositionTypes: Record<string, Set<string>> = {}; // Track which hot position types worked
-    staffWithPreferences.forEach(s => {
-      staffPositionHistory[s.id] = new Set();
-      staffHotPositionCount[s.id] = 0;
-      staffHotPositionTypes[s.id] = new Set();
-    });
-
-    // Assign positions for each time slot
-    TIME_SLOTS.forEach((slot, slotIndex) => {
-      const availableStaff = staffWithPreferences.filter(s => s.availableSlots.includes(slot));
-      const assignments: ScheduleAssignment[] = [];
-      const assignedStaff = new Set<string>();
-      const assignedPositions = new Set<Position>();
-
-      // Get positions for this specific time slot and staff count
-      const positionsForSlot = getPositionsForSlotAndCount(slot, dailyStaff.length);
-
-      // Define essential positions based on slot and staff count
-      // For 6 people during busy hours (11-12, 12-1), Grill 2 is essential
-      let essentialPositions: Position[] = ['P.O.S.', 'Grill 1', 'Expo 1', 'Fries', 'Expo 2'];
-      if (dailyStaff.length === 6 && (slot === '11am-12pm' || slot === '12pm-1pm') && !oneGrillerOnly) {
-        essentialPositions = ['P.O.S.', 'Grill 1', 'Grill 2', 'Expo 1', 'Expo 2', 'Fries'];
-      }
-
-      // Score all available staff for a given position and return the best match
-      const scoreStaffForPosition = (position: Position, availableStaff: StaffWithPreferences[], assignedStaff: Set<string>): { staffId: string; staffName: string } | null => {
-        const staffScores: Array<{ staffId: string; staffName: string; score: number }> = [];
-
-        availableStaff.forEach(staff => {
-          if (assignedStaff.has(staff.id)) return;
-
-          const isHotPosition = HOT_POSITIONS.includes(position);
-          const isFirstSlot = slot === '11am-12pm';
-          const isGrillOpener = staff.id === grillOpener;
-
-          // Skip grill opener for hot positions during 11-12pm
-          if (isGrillOpener && isHotPosition && isFirstSlot) return;
-
-          // Hard block: never assign same position twice in one day
-          if (staffPositionHistory[staff.id].has(position)) return;
-
-          const preference = getPreferenceForPosition(staff.preferences, position);
-          const historicalFrequency = getPositionFrequency(staff.id, position);
-
-          // Check if this person worked this position at this time slot yesterday
-          const workedSameSlotYesterday = (() => {
-            if (history.length === 0) return false;
-            const yesterdaySchedule = history[0];
-            if (!yesterdaySchedule.schedule) return false;
-            const yesterdaySlotAssignments = yesterdaySchedule.schedule[slot];
-            if (!yesterdaySlotAssignments) return false;
-            return yesterdaySlotAssignments.some((assignment: any) =>
-              assignment.staffId === staff.id && assignment.position === position
-            );
-          })();
-
-          // Heavy penalty for second hot position assignment
-          let hotPositionPenalty = 0;
-          if (isHotPosition && staffHotPositionCount[staff.id] >= 1) {
-            const seniorityRank = getSeniorityRank(staff.seniority);
-            hotPositionPenalty = 1000 - (seniorityRank * 50);
-            if (staffHotPositionTypes[staff.id].has(getHotPositionType(position))) {
-              hotPositionPenalty += 500;
-            }
-          }
-
-          const sameSlotYesterdayPenalty = workedSameSlotYesterday ? 500 : 0;
-          const historyPenalty = historicalFrequency * 0.5;
-          // Random tie-break, deliberately smaller than every intentional gap:
-          // preference steps are 1.0 and history-penalty steps are 0.5, so a
-          // 0-0.4 jitter can never flip a real ranking -- it only decides
-          // EXACT ties, which otherwise always fall to whoever clocks in
-          // earliest and hands the same people the same stations every day.
-          // It is also what makes Shuffle actually shuffle.
-          const tieBreak = Math.random() * 0.4;
-          const score = preference + tieBreak - historyPenalty - hotPositionPenalty - sameSlotYesterdayPenalty;
-
-          staffScores.push({ staffId: staff.id, staffName: staff.name, score });
-        });
-
-        staffScores.sort((a, b) => b.score - a.score);
-        return staffScores.length > 0 ? staffScores[0] : null;
-      };
-
-      // Assign a list of positions using the scoring algorithm
-      const assignPositions = (positions: Position[]) => {
-        positions.forEach(position => {
-          const best = scoreStaffForPosition(position, availableStaff, assignedStaff);
-          if (best) {
-            assignments.push({ position, staffName: best.staffName, staffId: best.staffId });
-            assignedStaff.add(best.staffId);
-            assignedPositions.add(position);
-            staffPositionHistory[best.staffId].add(position);
-            if (HOT_POSITIONS.includes(position)) {
-              staffHotPositionCount[best.staffId]++;
-              staffHotPositionTypes[best.staffId].add(getHotPositionType(position));
-            }
-          } else {
-            assignments.push({ position, staffName: 'UNFILLED', staffId: '' });
-            assignedPositions.add(position);
-          }
-        });
-      };
-
-      // Phase 1: Fill essential positions first
-      assignPositions(positionsForSlot.filter(p => essentialPositions.includes(p)));
-
-      // Phase 2: Fill remaining non-essential positions
-      assignPositions(positionsForSlot.filter(p => !essentialPositions.includes(p)));
-
-      // Phase 3: Resolve any UNFILLED positions by swapping assignments
-      // The greedy algorithm can paint itself into a corner: e.g., with 2 remaining
-      // staff and 2 positions, it picks the wrong person for the first position,
-      // leaving the last person blocked from the only remaining position.
-      const unfilledIndices: number[] = [];
-      for (let i = 0; i < assignments.length; i++) {
-        if (assignments[i].staffId === '') unfilledIndices.push(i);
-      }
-
-      if (unfilledIndices.length > 0) {
-        const unassignedStaff = availableStaff.filter(s => !assignedStaff.has(s.id));
-
-        for (const ui of unfilledIndices) {
-          const unfilledPos = assignments[ui].position;
-
-          // Try direct assignment first (unassigned staff who can fill this position)
-          const directMatch = unassignedStaff.find(s => !staffPositionHistory[s.id].has(unfilledPos));
-          if (directMatch) {
-            assignments[ui] = { position: unfilledPos, staffName: directMatch.name, staffId: directMatch.id };
-            assignedStaff.add(directMatch.id);
-            staffPositionHistory[directMatch.id].add(unfilledPos);
-            if (HOT_POSITIONS.includes(unfilledPos)) {
-              staffHotPositionCount[directMatch.id]++;
-              staffHotPositionTypes[directMatch.id].add(getHotPositionType(unfilledPos));
-            }
-            unassignedStaff.splice(unassignedStaff.indexOf(directMatch), 1);
-            continue;
-          }
-
-          // No direct match — find a swap: an assigned person who CAN do the unfilled
-          // position, whose current position an unassigned person CAN fill
-          for (const ua of unassignedStaff) {
-            let swapDone = false;
-            for (let j = 0; j < assignments.length; j++) {
-              if (assignments[j].staffId === '') continue;
-
-              const canDoUnfilled = !staffPositionHistory[assignments[j].staffId].has(unfilledPos);
-              const canFillVacated = !staffPositionHistory[ua.id].has(assignments[j].position);
-
-              if (canDoUnfilled && canFillVacated) {
-                const vacatedPos = assignments[j].position;
-                const movedId = assignments[j].staffId;
-                const movedName = assignments[j].staffName;
-
-                // Move assigned person to unfilled position
-                staffPositionHistory[movedId].delete(vacatedPos);
-                if (HOT_POSITIONS.includes(vacatedPos)) {
-                  staffHotPositionCount[movedId]--;
-                  const hType = getHotPositionType(vacatedPos);
-                  const hasOtherSameType = [...staffPositionHistory[movedId]].some(
-                    p => HOT_POSITIONS.includes(p) && getHotPositionType(p) === hType
-                  );
-                  if (!hasOtherSameType) staffHotPositionTypes[movedId].delete(hType);
-                }
-                assignments[ui] = { position: unfilledPos, staffName: movedName, staffId: movedId };
-                staffPositionHistory[movedId].add(unfilledPos);
-                if (HOT_POSITIONS.includes(unfilledPos)) {
-                  staffHotPositionCount[movedId]++;
-                  staffHotPositionTypes[movedId].add(getHotPositionType(unfilledPos));
-                }
-
-                // Put unassigned person at vacated position
-                assignments[j] = { position: vacatedPos, staffName: ua.name, staffId: ua.id };
-                assignedStaff.add(ua.id);
-                staffPositionHistory[ua.id].add(vacatedPos);
-                if (HOT_POSITIONS.includes(vacatedPos)) {
-                  staffHotPositionCount[ua.id]++;
-                  staffHotPositionTypes[ua.id].add(getHotPositionType(vacatedPos));
-                }
-
-                unassignedStaff.splice(unassignedStaff.indexOf(ua), 1);
-                swapDone = true;
-                break;
-              }
-            }
-            if (swapDone) break;
-          }
-        }
-      }
-
-      newSchedule[slot] = assignments;
-    });
-
-    // Collect all unique positions used across all slots
-    const allPositionsUsed = new Set<Position>();
-    TIME_SLOTS.forEach(slot => {
-      const positions = getPositionsForSlotAndCount(slot, dailyStaff.length);
-      positions.forEach(p => allPositionsUsed.add(p));
-    });
-    const activePositionsArray = Array.from(allPositionsUsed);
+    const newSchedule = result.schedule;
+    const activePositionsArray = result.activePositions;
 
     setSchedule(newSchedule);
     setActivePositions(activePositionsArray);
+    setRelaxed(result.relaxed);
 
     // Save current schedule to localStorage
     localStorage.setItem('currentSchedule', JSON.stringify(newSchedule));
@@ -477,7 +154,7 @@ export default function ScheduleGenerator() {
     const currentDate = localStorage.getItem('currentDate') || todayLocal();
     const historyKey = 'scheduleHistory';
     const existingHistory = localStorage.getItem(historyKey);
-    let updatedHistory: any[] = existingHistory ? JSON.parse(existingHistory) : [];
+    let updatedHistory: HistoryDay[] = existingHistory ? JSON.parse(existingHistory) : [];
 
     // Find and update entry for current date
     const dateIndex = updatedHistory.findIndex(h => h.date === currentDate);
@@ -494,7 +171,7 @@ export default function ScheduleGenerator() {
     }
 
     // Keep only last 7 days
-    updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    updatedHistory.sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime());
     updatedHistory = updatedHistory.slice(0, 7);
 
     localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
@@ -524,6 +201,11 @@ export default function ScheduleGenerator() {
             <p className="text-sm font-medium text-gray-600 mt-1">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
+            {relaxed && (
+              <p className="mt-2 text-sm font-medium text-amber-700">
+                Today&apos;s shift times don&apos;t leave enough people to keep everyone off hot stations two hours in a row. Someone is hot back to back.
+              </p>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -560,7 +242,7 @@ export default function ScheduleGenerator() {
                   // Check if this position has any assigned staff (not UNFILLED)
                   const hasAssignments = TIME_SLOTS.some(slot => {
                     const assignment = schedule[slot].find(a => a.position === position);
-                    return assignment && assignment.staffName !== 'UNFILLED';
+                    return assignment && assignment.staffName !== UNFILLED;
                   });
 
                   // Check if this position appears in any slot (even if UNFILLED)
@@ -583,7 +265,7 @@ export default function ScheduleGenerator() {
 
                         return (
                           <td key={slot} className="px-6 py-4 whitespace-nowrap text-center">
-                            {staffName && staffName !== 'UNFILLED' ? (
+                            {staffName && staffName !== UNFILLED ? (
                               <span
                                 className={`inline-flex items-center rounded-xl px-4 py-2 text-lg font-bold shadow-lg ${POSITION_PILL}`}
                               >
