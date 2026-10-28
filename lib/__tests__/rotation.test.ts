@@ -289,6 +289,81 @@ describe('fairness', () => {
     expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(2);
   });
 
+  describe('shuffle', () => {
+    // Every station rated by everyone, with the unavoidable ties (6 people,
+    // 5 levels) all parked on Ana/Jay, so strict mode has almost nothing
+    // for jitter to decide.
+    const opinionated = (name: string, levels: number[]): RotationStaff => ({
+      id: name.toLowerCase(),
+      name,
+      availableSlots: [...TIME_SLOTS],
+      preferences: (['Grill 1', 'Fries', 'P.O.S.', 'Expo 1', 'Expo 2', 'Lobby/Dish 1'] as Position[]).map(
+        (position, i) => ({ position, preferenceLevel: levels[i] as 1 | 2 | 3 | 4 | 5 }),
+      ),
+    });
+    const crewWithOpinions = () => [
+      //                      G  F  P  E1 E2 L
+      opinionated('Devin',  [5, 4, 2, 1, 3, 2]),
+      opinionated('Tonny',  [4, 3, 5, 2, 1, 3]),
+      opinionated('Red',    [2, 5, 3, 4, 2, 1]),
+      opinionated('Maddie', [3, 2, 4, 5, 4, 4]),
+      opinionated('Ana',    [1, 1, 1, 3, 5, 5]),
+      opinionated('Jay',    [3, 1, 1, 3, 5, 5]),
+    ];
+    it('moves cold stations on most presses, compared to the strict grid for the same seed', () => {
+      let seedsThatMoved = 0;
+      let coldCellsMoved = 0;
+      let coldCells = 0;
+      for (let seed = 100; seed < 120; seed++) {
+        const strict = run(crewWithOpinions(), { random: seeded(seed) }).schedule;
+        const shuffled = run(crewWithOpinions(), { shuffle: true, random: seeded(seed) }).schedule;
+        let moved = 0;
+        for (const slot of TIME_SLOTS) {
+          strict[slot].forEach((a, i) => {
+            if (isHot(a.position)) return;
+            coldCells++;
+            if (a.staffId !== shuffled[slot][i].staffId) moved++;
+          });
+        }
+        coldCellsMoved += moved;
+        if (moved > 0) seedsThatMoved++;
+      }
+      expect(seedsThatMoved).toBeGreaterThanOrEqual(12);
+      expect(coldCellsMoved / coldCells).toBeGreaterThan(0.2);
+    });
+
+    it('never touches hot placement or the hard rules', () => {
+      const staff = crewWithOpinions();
+      for (let seed = 1; seed <= 30; seed++) {
+        const strict = run(staff, { random: seeded(seed) });
+        const shuffled = run(staff, { shuffle: true, random: seeded(seed) });
+        assertRules(shuffled.schedule, staff, '', shuffled.relaxed);
+        const hotOnly = (s: Schedule) =>
+          TIME_SLOTS.map(slot => s[slot].filter(a => isHot(a.position)).map(a => `${a.position}=${a.staffId}`));
+        expect(hotOnly(shuffled.schedule)).toEqual(hotOnly(strict.schedule));
+      }
+    });
+
+    it('a cold station never goes to someone two preference levels below the best candidate', () => {
+      const staff = crewWithOpinions();
+      for (let seed = 1; seed <= 30; seed++) {
+        const r = run(staff, { shuffle: true, random: seeded(seed) });
+        for (const slot of TIME_SLOTS) {
+          for (const a of r.schedule[slot]) {
+            if (!a.staffId || isHot(a.position)) continue;
+            const got = preferenceFor(staff.find(s => s.id === a.staffId)!.preferences, a.position);
+            // Anyone who was free for this cell and rates it 2+ higher would have won.
+            const takenHere = new Set(r.schedule[slot].map(x => x.staffId));
+            const best = Math.max(
+              ...staff.filter(s => !takenHere.has(s.id) || s.id === a.staffId).map(s => preferenceFor(s.preferences, a.position)),
+            );
+            expect(best - got, `${a.staffId} on ${a.position} at ${slot} (pref ${got}, best free ${best}) seed ${seed}`).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+    });
+  });
+
   it('is deterministic for a given random source', () => {
     const a = run(crew(7), { random: seeded(99) });
     const b = run(crew(7), { random: seeded(99) });

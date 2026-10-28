@@ -108,7 +108,7 @@ export default function ScheduleGenerator() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingGenerate, dailyStaff]);
 
-  const generateSchedule = () => {
+  const generateSchedule = ({ shuffle = false }: { shuffle?: boolean } = {}) => {
     if (dailyStaff.length === 0) {
       alert('No staff selected for today. Please go to the Dashboard and select who is working.');
       return;
@@ -135,6 +135,7 @@ export default function ScheduleGenerator() {
       grillOpener,
       oneGrillerOnly,
       history,
+      shuffle,
     });
     const newSchedule = result.schedule;
     const activePositionsArray = result.activePositions;
@@ -286,7 +287,7 @@ export default function ScheduleGenerator() {
 
           <div className="p-6 bg-gray-50 border-t border-gray-200 flex space-x-3">
             <button
-              onClick={() => generateSchedule()}
+              onClick={() => generateSchedule({ shuffle: true })}
               className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
             >
               Shuffle

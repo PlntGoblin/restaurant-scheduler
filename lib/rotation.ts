@@ -63,6 +63,13 @@ export interface RotationInput {
   oneGrillerOnly: boolean;
   /** Most recent day first. */
   history: HistoryDay[];
+  /**
+   * Shuffle: on the COLD stations only, treat people within one preference
+   * level of each other as interchangeable, so pressing the button gives a
+   * different grid. Hot placement is never shuffled -- fairness decides it.
+   * Off, the grid is the best-preference one.
+   */
+  shuffle?: boolean;
   /** Injectable for deterministic tests. Defaults to Math.random. */
   random?: () => number;
 }
@@ -280,13 +287,19 @@ export function generateRotation(input: RotationInput): RotationResult {
   const board = new Board();
 
   // Jitter is fixed per (person, cell) for the whole search so backtracking
-  // sees a stable ordering. It is strictly smaller than any real key.
+  // sees a stable ordering. It is strictly smaller than any real key, so it
+  // only decides exact ties.
   const jitter = new Map<string, number>();
   const jit = (id: string, cell: Cell) => {
     const k = `${id}|${key(cell)}`;
     if (!jitter.has(k)) jitter.set(k, random());
     return jitter.get(k)!;
   };
+  // Shuffle spreads cold-station preference by up to (not including) two
+  // levels: a 4 and a 3 trade places about one time in eight, and a 4 can
+  // never lose to a 2. Bigger than this and Shuffle starts handing people
+  // stations they actively dislike.
+  const shuffleSpread = input.shuffle ? 2 : 0;
 
   const baseEligible = (id: string, cell: Cell): boolean => {
     const s = byId.get(id)!;
@@ -335,7 +348,7 @@ export function generateRotation(input: RotationInput): RotationResult {
       .map(s => ({
         id: s.id,
         k: [
-          -preferenceFor(s.preferences, cell.position),
+          -(preferenceFor(s.preferences, cell.position) + jit(s.id, cell) * shuffleSpread),
           workedSameSlotYesterday(history, s.id, cell) ? 1 : 0,
           recentStationShifts(history, s.id, stationOf(cell.position)),
           jit(s.id, cell),
