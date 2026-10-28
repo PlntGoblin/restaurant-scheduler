@@ -204,13 +204,47 @@ describe('hard rules', () => {
     expect(r.schedule['11am-12pm'].some(a => a.staffId === 'jay')).toBe(false);
   });
 
-  it('marks UNFILLED when fewer people are on shift than stations', () => {
-    const staff = [...crew(5), person('Jay', { slots: ['1pm-2pm'] })];
-    const r = run(staff);
-    // 6 stations at 11am and 12pm, only 5 people on shift.
-    expect(r.schedule['11am-12pm'].filter(a => a.staffName === UNFILLED).length).toBe(1);
-    expect(r.schedule['12pm-1pm'].filter(a => a.staffName === UNFILLED).length).toBe(1);
-    expect(r.schedule['1pm-2pm'].filter(a => a.staffName === UNFILLED).length).toBe(0);
+  describe('each hour is sized by who is on shift that hour', () => {
+    const positionsAt = (schedule: Schedule, slot: TimeSlot) => schedule[slot].map(a => a.position);
+
+    it('6 staff, one leaves at 1pm: 1pm is the 5-person layout with nothing unfilled', () => {
+      const staff = [...crew(5), person('Jay', { slots: ['11am-12pm', '12pm-1pm'] })];
+      const r = run(staff);
+      assertRules(r.schedule, staff, '', r.relaxed);
+      expect(positionsAt(r.schedule, '11am-12pm')).toHaveLength(6);
+      expect(positionsAt(r.schedule, '1pm-2pm')).toEqual(positionsFor(5, '1pm-2pm', false));
+      expect(unfilled(r.schedule)).toBe(0);
+    });
+
+    it('8 staff, one leaves at 1pm: 1pm has one griller and both dish stations', () => {
+      const staff = [...crew(7), person('Lee', { slots: ['11am-12pm', '12pm-1pm'] })];
+      const r = run(staff);
+      assertRules(r.schedule, staff, '', r.relaxed);
+      const pm = positionsAt(r.schedule, '1pm-2pm');
+      expect(pm).toHaveLength(7);
+      expect(pm).not.toContain('Grill 2');
+      expect(pm).toContain('Lobby/Dish 2');
+      expect(unfilled(r.schedule)).toBe(0);
+    });
+
+    it('5 all day plus a 1pm arrival: busy hours use 5 stations, 1pm uses 6', () => {
+      const staff = [...crew(5), person('Jay', { slots: ['1pm-2pm'] })];
+      const r = run(staff);
+      assertRules(r.schedule, staff, '', r.relaxed);
+      expect(positionsAt(r.schedule, '11am-12pm')).toHaveLength(5);
+      expect(positionsAt(r.schedule, '12pm-1pm')).toHaveLength(5);
+      expect(positionsAt(r.schedule, '1pm-2pm')).toHaveLength(6);
+      expect(unfilled(r.schedule)).toBe(0);
+    });
+
+    it('still marks UNFILLED when an hour has fewer than 5 people', () => {
+      const staff = [...crew(4), person('Ana', { slots: ['11am-12pm'] }), person('Jay', { slots: ['11am-12pm'] })];
+      const r = run(staff);
+      // 11am: 6 on. 12pm and 1pm: 4 on, laid out for the 5-person minimum.
+      expect(r.schedule['11am-12pm'].filter(a => a.staffName === UNFILLED).length).toBe(0);
+      expect(r.schedule['12pm-1pm'].filter(a => a.staffName === UNFILLED).length).toBe(1);
+      expect(r.schedule['1pm-2pm'].filter(a => a.staffName === UNFILLED).length).toBe(1);
+    });
   });
 
   it('relaxes the consecutive-hot rule only when the roster leaves no other way', () => {

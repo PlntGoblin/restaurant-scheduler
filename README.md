@@ -64,8 +64,9 @@ decide who — whoever has been hot least this week — and keep the two hours a
 times make the no-back-to-back rule impossible (e.g. a 6-crew with one 1pm-only person), it is
 relaxed for that day and the schedule says so in amber.
 
-Staffing per headcount is a table in `lib/rotation.ts` (`positionsFor`). With 7 staff the second
-griller stands down for the 1pm slow hour and the hands go to Lobby/Dish 2.
+Staffing per headcount is a table in `lib/rotation.ts` (`positionsFor`), and each hour is sized by
+who is on shift **that hour**: when the 11–1 person goes home, 1pm gets the smaller crew's layout.
+With 7 on, the second griller stands down for the 1pm slow hour and the hands go to Lobby/Dish 2.
 
 ### History
 - View the past 7 days of generated schedules
