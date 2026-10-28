@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Position, TimeSlot } from '@/lib/types';
 import { TIME_SLOTS } from '@/lib/constants';
 import { POSITION_PILL } from '@/lib/positionStyle';
+import { UNFILLED } from '@/lib/rotation';
 
 interface HistoryEntry {
   date: string;
@@ -107,7 +108,7 @@ export default function History() {
                                   const assignment = entry.schedule![slot].find(a => a.position === position);
                                   return (
                                     <td key={slot} className="px-4 py-2 whitespace-nowrap text-center">
-                                      {assignment?.staffName ? (
+                                      {assignment?.staffName && assignment.staffName !== UNFILLED ? (
                                         <span
                                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm ${POSITION_PILL}`}
                                         >

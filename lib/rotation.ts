@@ -275,9 +275,14 @@ export function generateRotation(input: RotationInput): RotationResult {
   const random = input.random ?? Math.random;
   const byId = new Map(staff.map(s => [s.id, s]));
 
+  // Each hour is laid out for the people on shift THAT hour, not the day's
+  // headcount: when the 11-1pm person goes home, 1pm is a smaller crew and
+  // gets the smaller layout (one griller, hands to dish) rather than a
+  // second griller and a Lobby/Dish cell nobody can fill.
   const cells: Cell[] = [];
   TIME_SLOTS.forEach((slot, slotIndex) => {
-    for (const position of positionsFor(staff.length, slot, oneGrillerOnly)) {
+    const onShift = staff.filter(s => s.availableSlots.includes(slot)).length;
+    for (const position of positionsFor(onShift, slot, oneGrillerOnly)) {
       cells.push({ slot, slotIndex, position });
     }
   });
