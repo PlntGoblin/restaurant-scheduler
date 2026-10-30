@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react';
 import { DailyStaff, StaffMember } from '@/lib/types';
 import { todayLocal } from '@/lib/toast/time';
 import { formatHHMM, formatRawRange, type ToastShiftDTO } from '@/lib/toast/shifts';
@@ -91,8 +91,6 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     [staffRoster],
   );
 
-  const linkedCount = staffRoster.filter((s) => (s.toastGuids ?? []).length > 0).length;
-
   const saveRoster = (next: DailyStaff[], edited: boolean, date = selectedDate) => {
     localStorage.setItem('dailyStaff', JSON.stringify(next));
     localStorage.setItem(ROSTER_META_KEY, JSON.stringify({ date, edited } satisfies RosterMeta));
@@ -172,19 +170,23 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     localStorage.setItem('oneGrillerOnly', oneGrillerOnly.toString());
   }, [oneGrillerOnly]);
 
-  useEffect(() => {
-    if (!hasMounted.current) return;
-    // Hydration lands here too (today -> the stored date). Only a change
-    // AWAY from the date this state was built for is the manager's doing.
-    if (appliedDate.current === selectedDate) return;
-    appliedDate.current = selectedDate;
-    localStorage.setItem('currentDate', selectedDate);
+  /**
+   * Everything a date change throws away.
+   *
+   * An Effect Event, not a plain closure: it reads the CURRENT roster without
+   * making the roster a dependency. Listing `workingToday.length` as a dep --
+   * the only other way to read it honestly -- would re-run this whole reset
+   * every time someone adds or removes a person, wiping the opener and the
+   * pull state mid-edit. Changing the DATE is the only thing that should.
+   */
+  const resetForDate = useEffectEvent((date: string) => {
+    localStorage.setItem('currentDate', date);
     setIsSaved(false);
     // An edit protects the DAY it was made on. Switching to another date means
     // those edits no longer describe what is on screen, so the new date gets
     // to auto-fill like any other untouched day -- otherwise one removal this
     // morning would stop tomorrow from ever filling itself in.
-    setRosterEdited(isRosterProtected(loadMeta(), selectedDate, workingToday.length));
+    setRosterEdited(isRosterProtected(loadMeta(), date, workingToday.length));
     // Everything below came from a different day's shifts.
     setPendingDiff(null);
     setShiftByStaffId(new Map());
@@ -193,6 +195,15 @@ export default function Dashboard({ onSaveAndGenerate, onManageToastLinks }: Das
     setGrillOpener('');
     setOneGrillerOnly(false);
     setToastStatus({ kind: 'idle' });
+  });
+
+  useEffect(() => {
+    if (!hasMounted.current) return;
+    // Hydration lands here too (today -> the stored date). Only a change
+    // AWAY from the date this state was built for is the manager's doing.
+    if (appliedDate.current === selectedDate) return;
+    appliedDate.current = selectedDate;
+    resetForDate(selectedDate);
   }, [selectedDate]);
 
   // Auto-fill the opener (highest Grill preference among the early clock-ins;

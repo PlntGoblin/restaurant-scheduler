@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { StaffMember, Position, PositionPreference } from '@/lib/types';
+import { useState } from 'react';
+import { StaffMember, Position } from '@/lib/types';
 import { ALL_POSITIONS } from '@/lib/constants';
+import { useLocalJSON } from '@/lib/clientStore';
+import { isStaffList, NO_STAFF, saveStaff, STAFF_KEY } from '@/lib/toast/roster';
 import TrashIcon from './TrashIcon';
 
 // Positions for preferences (exclude duplicates)
@@ -16,21 +18,12 @@ const PREFERENCE_POSITIONS: Position[] = [
 ];
 
 export default function StaffManagement() {
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  // The roster lives in localStorage, so read it as an external store instead
+  // of setState-ing from a mount effect. `saveStaff` is the only writer --
+  // it persists AND notifies, so this list updates from the write itself.
+  const staff = useLocalJSON(STAFF_KEY, NO_STAFF, isStaffList);
   const [isAddingStaff, setIsAddingStaff] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
-
-  // Load saved staff from localStorage on mount
-  useEffect(() => {
-    const savedStaff = localStorage.getItem('staff');
-    if (savedStaff) {
-      try {
-        setStaff(JSON.parse(savedStaff));
-      } catch (error) {
-        console.error('Error loading staff:', error);
-      }
-    }
-  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -79,10 +72,7 @@ export default function StaffManagement() {
       ? staff.map((s) => (s.id === editingStaff.id ? newStaff : s))
       : [...staff, newStaff];
 
-    setStaff(updatedStaff);
-
-    // Save to localStorage
-    localStorage.setItem('staff', JSON.stringify(updatedStaff));
+    saveStaff(updatedStaff);
 
     setIsAddingStaff(false);
     setEditingStaff(null);
@@ -105,9 +95,7 @@ export default function StaffManagement() {
 
   const handleDeleteStaff = (id: string) => {
     if (confirm('Are you sure you want to delete this staff member?')) {
-      const updatedStaff = staff.filter((s) => s.id !== id);
-      setStaff(updatedStaff);
-      localStorage.setItem('staff', JSON.stringify(updatedStaff));
+      saveStaff(staff.filter((s) => s.id !== id));
     }
   };
 

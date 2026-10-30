@@ -9,26 +9,48 @@
  */
 
 import { ALL_POSITIONS } from '@/lib/constants';
+import { readLocalJSON, writeLocalJSON } from '@/lib/clientStore';
 import { DailyStaff, StaffMember } from '@/lib/types';
 import type { ToastShiftDTO } from './shifts';
 import type { ToastEmployeeDTO } from './match';
 
 export const STAFF_KEY = 'staff';
 
-export function loadStaff(): StaffMember[] {
-  try {
-    const raw = localStorage.getItem(STAFF_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as StaffMember[]) : [];
-  } catch {
-    // A corrupt roster should not blank the screen; the caller shows the
-    // "no staff found" state and Staff Management can rebuild it.
-    return [];
-  }
+/**
+ * The empty roster, as one shared reference.
+ *
+ * `useLocalJSON` feeds its fallback to `useCallback`, so a fresh `[]` per
+ * render would resubscribe on every render. See lib/clientStore.ts.
+ */
+export const NO_STAFF: StaffMember[] = [];
+
+/** Shape gate for the stored roster. Module-level for the same stability reason. */
+export function isStaffList(value: unknown): value is StaffMember[] {
+  return Array.isArray(value);
 }
 
+/**
+ * Read the roster imperatively (the Dashboard's hydration pass).
+ *
+ * Shares one parse cache with the subscribed readers, so this and Staff
+ * Management cannot disagree about what is stored. A corrupt roster falls
+ * back to empty rather than blanking the screen: the caller shows its "no
+ * staff found" state and Staff Management can rebuild it.
+ */
+export function loadStaff(): StaffMember[] {
+  return readLocalJSON(STAFF_KEY, NO_STAFF, isStaffList);
+}
+
+/**
+ * Write the roster and wake every screen reading it.
+ *
+ * Goes through the store rather than straight to localStorage so a GUID
+ * linked on Toast Link lands in Staff Management without a remount -- and so
+ * the writer's own `useLocalJSON` sees it, since `storage` events never fire
+ * in the tab that did the writing.
+ */
 export function saveStaff(staff: StaffMember[]): void {
-  localStorage.setItem(STAFF_KEY, JSON.stringify(staff));
+  writeLocalJSON(STAFF_KEY, staff);
 }
 
 /** GUID -> staff member, for resolving a Toast shift to a person. */

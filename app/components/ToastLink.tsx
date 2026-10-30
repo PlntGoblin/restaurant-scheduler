@@ -10,47 +10,70 @@
  * decision. A wrong link puts somebody on the schedule who is not working.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StaffMember } from '@/lib/types';
+import { useLocalJSON } from '@/lib/clientStore';
 import { suggestLinks, type ToastEmployeeDTO } from '@/lib/toast/match';
-import { loadStaff, saveStaff, staffFromToastEmployee } from '@/lib/toast/roster';
+import {
+  isStaffList,
+  NO_STAFF,
+  saveStaff,
+  STAFF_KEY,
+  staffFromToastEmployee,
+} from '@/lib/toast/roster';
 
 type LoadState =
   | { status: 'loading' }
   | { status: 'ready'; employees: ToastEmployeeDTO[] }
   | { status: 'error'; message: string; detail?: string };
 
+/** Fetches, never sets state: the caller decides whether its answer is still wanted. */
+async function fetchEmployees(): Promise<LoadState> {
+  try {
+    const res = await fetch('/api/toast/employees');
+    const body = await res.json();
+    if (!res.ok) {
+      return { status: 'error', message: body?.error ?? `Request failed (${res.status})`, detail: body?.detail };
+    }
+    return { status: 'ready', employees: body.employees ?? [] };
+  } catch (e) {
+    return {
+      status: 'error',
+      message: 'Could not reach the Toast endpoint.',
+      detail: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
 export default function ToastLink() {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  // The roster is localStorage-backed; `saveStaff` persists and notifies, so
+  // every link made below shows up here without a second copy of the list.
+  const staff = useLocalJSON(STAFF_KEY, NO_STAFF, isStaffList);
   const [savedNote, setSavedNote] = useState<string>('');
+  /** Bumped by Retry to re-run the fetch effect. */
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    setStaff(loadStaff());
-  }, []);
+    let cancelled = false;
+    // `state` already starts at 'loading', so the fetch is awaited rather
+    // than announced -- no synchronous setState on the way into an effect.
+    (async () => {
+      const next = await fetchEmployees();
+      if (!cancelled) setState(next);
+    })();
+    // Retrying mid-flight cancels the older answer. Without this a slow first
+    // response lands on top of a newer one and the screen shows stale people
+    // -- the exact list a human is about to link GUIDs against.
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
 
-  const reload = useCallback(async () => {
+  const reload = () => {
     setState({ status: 'loading' });
-    try {
-      const res = await fetch('/api/toast/employees');
-      const body = await res.json();
-      if (!res.ok) {
-        setState({ status: 'error', message: body?.error ?? `Request failed (${res.status})`, detail: body?.detail });
-        return;
-      }
-      setState({ status: 'ready', employees: body.employees ?? [] });
-    } catch (e) {
-      setState({
-        status: 'error',
-        message: 'Could not reach the Toast endpoint.',
-        detail: e instanceof Error ? e.message : String(e),
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
+    setAttempt((n) => n + 1);
+  };
 
   // Memoised so the identity is stable: a fresh [] on every render would
   // re-run every useMemo below it and recompute the whole match each keystroke.
@@ -77,7 +100,6 @@ export default function ToastLink() {
   }, [staff]);
 
   const persist = (next: StaffMember[], note: string) => {
-    setStaff(next);
     saveStaff(next);
     setSavedNote(note);
   };
