@@ -80,6 +80,22 @@ body {
     box-shadow: none !important;
   }
 
+  /* On screen the grid scrolls sideways when it is too wide. Paper has no
+     sideways: that container CLIPPED the 1pm-2pm column clean off the sheet.
+     Let it flow, and let the table use the full width it now has. */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+  table {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+  th,
+  td {
+    padding: 0.35rem 0.5rem !important;
+    overflow-wrap: anywhere;
+  }
+
   /* Don't let a position's row break across two sheets, and repeat the
      time-slot header if the grid ever does run onto a second page. */
   thead {
