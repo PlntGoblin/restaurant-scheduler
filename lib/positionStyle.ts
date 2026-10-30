@@ -6,4 +6,4 @@
  * and History's mini-tables can never drift apart.
  */
 export const POSITION_PILL =
-  'bg-gradient-to-b from-red-500 to-red-700 text-white shadow-red-950/50';
+  'schedule-pill bg-gradient-to-b from-red-500 to-red-700 text-white shadow-red-950/50';

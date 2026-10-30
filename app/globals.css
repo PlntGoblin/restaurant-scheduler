@@ -36,17 +36,69 @@ body {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
-/* The lunch rotation is printed and taped up daily. Paper gets plain
-   black-on-white: no dark gradient to drink the toner, no translucency. */
+/* The lunch rotation is printed and taped up by the pass every day, often on
+   a black-and-white kitchen printer. Paper gets: no chrome, no translucency,
+   no background fills (browsers drop those anyway -- white-on-red pills came
+   out as white-on-white), and nothing on the page but the grid itself. */
 @media print {
   body {
     background: #ffffff !important;
+    color: #000000 !important;
   }
+
+  @page {
+    margin: 0.5in;
+  }
+
+  /* The nav is sticky, so it prints wherever it happened to be scrolled to --
+     which was straight through the table header. */
+  nav,
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
   .glass {
     background-color: #ffffff !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-color: #e5e7eb !important;
+    border: none !important;
     box-shadow: none !important;
+  }
+
+  /* Names were white text on a red gradient. Print drops the gradient and
+     keeps the white text. Outline the pill instead: legible in toner. */
+  .schedule-pill {
+    background: none !important;
+    background-image: none !important;
+    color: #000000 !important;
+    border: 1.5px solid #000000 !important;
+    box-shadow: none !important;
+  }
+
+  /* Don't let a position's row break across two sheets, and repeat the
+     time-slot header if the grid ever does run onto a second page. */
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    break-inside: avoid;
+  }
+
+  /* Tailwind's muted grays wash out on paper. */
+  th,
+  td,
+  h3,
+  p {
+    color: #000000 !important;
+  }
+  table,
+  thead,
+  tbody {
+    background: #ffffff !important;
   }
 }

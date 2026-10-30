@@ -181,8 +181,8 @@ export default function ScheduleGenerator() {
 
   return (
     <div className="space-y-6">
-      <div className="glass rounded-2xl p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Generate Today's Rotation Schedule</h2>
+      <div className="no-print glass rounded-2xl p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Generate Today&apos;s Rotation Schedule</h2>
         <p className="text-gray-600 mb-6">
           Generate the lunch rush rotation schedule for today. Staff will rotate through all 8 positions
           across the three time slots (11am-12pm, 12pm-1pm, 1pm-2pm) based on their preferences.
@@ -285,7 +285,7 @@ export default function ScheduleGenerator() {
             </table>
           </div>
 
-          <div className="p-6 bg-gray-50 border-t border-gray-200 flex space-x-3">
+          <div className="no-print p-6 bg-gray-50 border-t border-gray-200 flex space-x-3">
             <button
               onClick={() => generateSchedule({ shuffle: true })}
               className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"

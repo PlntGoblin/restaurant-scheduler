@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Position, TimeSlot } from '@/lib/types';
 import { TIME_SLOTS } from '@/lib/constants';
 import { POSITION_PILL } from '@/lib/positionStyle';
 import { UNFILLED } from '@/lib/rotation';
+import { useLocalJSON } from '@/lib/clientStore';
 
 interface HistoryEntry {
   date: string;
@@ -13,19 +13,17 @@ interface HistoryEntry {
   schedule?: Record<TimeSlot, Array<{ position: Position; staffName: string; staffId: string }>>;
 }
 
-export default function History() {
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+const HISTORY_KEY = 'scheduleHistory';
 
-  useEffect(() => {
-    const savedHistory = localStorage.getItem('scheduleHistory');
-    if (savedHistory) {
-      try {
-        setHistory(JSON.parse(savedHistory));
-      } catch (error) {
-        console.error('Error loading history:', error);
-      }
-    }
-  }, []);
+/** Module-level: both feed useCallback deps inside useLocalJSON. */
+const NO_HISTORY: HistoryEntry[] = [];
+const isHistory = (value: unknown): value is HistoryEntry[] => Array.isArray(value);
+
+export default function History() {
+  // Read straight from localStorage as an external store rather than
+  // setState-ing from a mount effect: the Generator writes this same key, and
+  // the prerender needs an answer that does not touch `localStorage`.
+  const history = useLocalJSON(HISTORY_KEY, NO_HISTORY, isHistory);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -52,7 +50,7 @@ export default function History() {
         </div>
       ) : (
         <div className="space-y-4">
-          {history.map((entry, index) => (
+          {history.map((entry) => (
             <div key={entry.date} className="glass rounded-2xl overflow-hidden">
               <div className="p-6 border-b border-gray-200 bg-gray-50">
                 <h3 className="text-xl font-semibold text-gray-900">
